@@ -1,0 +1,116 @@
+手机多租户虚拟主机 v4.0.0 —— 指令大全
+=====================================
+
+【① 启动全套】（开机/重启手机后跑）
+# v4.0: 先设置管理密码（首次必须，否则每次重启密码随机）
+export ADMIN_PASSWORD="你的强密码至少16位"
+# 安装 bcryptjs（v4.0 必需，推荐装一次）
+cd /storage/emulated/0/server && npm install bcryptjs
+# 启动服务器
+cd /storage/emulated/0/server && nohup node server.js > server.log 2>&1 & sleep 2 && nohup cloudflared tunnel --url http://127.0.0.1:3000 > tunnel.log 2>&1 & sleep 8; grep -o "https://[a-z0-9-]*\.trycloudflare\.com" tunnel.log | head -1
+
+cpolar 另开一个窗口前台跑（别关）：
+cpolar http http://localhost:3000
+
+【② 查看进程死活】
+ps aux | grep -E "node|cloudflared|cpolar" | grep -v grep
+
+【③ 重启服务器】（改了 server.js 后必跑）
+pkill -f "node server.js"; sleep 2; cd /storage/emulated/0/server && nohup node server.js > server.log 2>&1 & sleep 3; ps | grep node
+
+【④ 看 cloudflared 当前网址】
+grep -o "https://[a-z0-9-]*\.trycloudflare\.com" /storage/emulated/0/server/tunnel.log | tail -1
+
+【⑤ 看 cpolar 当前网址】
+curl -s http://127.0.0.1:4040/api/tunnels | tr ',' '\n' | grep public_url
+
+【⑥ 解除 IP 封禁】（v3.5 优化：支持精确解封 + 全部清除 + IP信誉 + 白名单 + 行为评分 + 境外IP统计）
+方式一（通过管理后台）：浏览器打开 /admin.html → 管理后台 → 安全 → IP管理 → 输入IP解封 或 全部清除
+方式二（通过 API）：curl -X POST {BASE_URL}/api/v2/sys/management/ips/unban -H "Content-Type: application/json" -d '{"admin_password":"管理密码","ip":"被封的IP"}'
+方式三（全部清除，慎用）：rm -f /storage/emulated/0/server/data/ip_bans.json
+方式四（查看IP信誉）：curl {BASE_URL}/api/v2/sys/management/ips/reputation?admin_password=管理密码
+方式五（IP白名单管理）：curl {BASE_URL}/api/v2/sys/management/ips/whitelist?admin_password=管理密码
+方式六（行为评分查询）：curl "{BASE_URL}/api/v2/sys/management/ips/behavior?admin_password=管理密码&ip=用户IP"
+方式七（境外IP统计）：curl {BASE_URL}/api/v2/sys/management/ips/geo?admin_password=管理密码
+
+【⑦ 看服务器日志】
+tail -40 /storage/emulated/0/server/server.log
+
+【⑧ 看封禁记录】
+grep "封禁IP" /storage/emulated/0/server/server.log | tail -10
+
+【⑨ 网页加速】（可选，装一次就行）
+cd /storage/emulated/0/server && npm install compression
+
+【⑩ 更新文件包】（以后发新版本的下载解压流程）
+cd /storage/emulated/0/server && for i in 00 01 02 03 04 05 06 07; do curl -sL --max-time 60 -o fix.b64.$i "https://raw.githubusercontent.com/78zhege-ctrl/vhost-files/main/fix.b64.$i"; done && cat fix.b64.0* > fix.b64 && base64 -d fix.b64 > fix.zip && unzip -o fix.zip && ls -l server.js
+
+【⑪ 防系统杀进程】
+下拉通知栏 → Termux 通知 → 点「Acquire wakelock」
+
+【⑫ 查看被封用户关联IP】（v3.3.2 新增）
+curl {BASE_URL}/api/v2/sys/management/ips/reputation?admin_password=管理密码&ip=用户IP
+
+【⑬ IP白名单管理】（v3.4 新增）
+添加白名单：curl -X POST {BASE_URL}/api/v2/sys/management/ips/whitelist/add -H "Content-Type: application/json" -d '{"admin_password":"管理密码","ip":"IP地址"}'
+移除白名单：curl -X POST {BASE_URL}/api/v2/sys/management/ips/whitelist/remove -H "Content-Type: application/json" -d '{"admin_password":"管理密码","ip":"IP地址"}'
+
+【⑭ 系统资源监控】（v3.4 新增）
+curl {BASE_URL}/api/v2/sys/resources?admin_password=管理密码
+
+【⑮ 会话管理】（v3.4 新增）
+查看活跃会话：curl {BASE_URL}/api/v2/user/sessions -H "Authorization: Bearer TOKEN"
+撤销会话：curl -X POST {BASE_URL}/api/v2/user/sessions/revoke -H "Content-Type: application/json" -H "Authorization: Bearer TOKEN" -d '{"token_prefix":"token前10位"}'
+
+【⑯ Token刷新】（v3.5 新增）
+JWT有效期15分钟，需要定期刷新Access Token：
+curl -X POST {BASE_URL}/api/v2/auth/session/refresh -H "Content-Type: application/json" -d '{"refreshToken":"你的RefreshToken"}'
+# v4.0 变更：刷新后会返回新的refreshToken，旧的立即失效（Token轮换）
+
+【⑰ 账户锁定管理】（v3.5 新增）
+查看锁定账户：curl {BASE_URL}/api/v2/sys/management/accounts/lockouts?admin_password=管理密码
+解锁账户：curl -X POST {BASE_URL}/api/v2/sys/management/accounts/unlock -H "Content-Type: application/json" -d '{"admin_password":"管理密码","username":"用户名"}'
+
+【⑱ 日志归档】（v3.5 新增）
+查看日志状态：curl {BASE_URL}/api/v2/sys/management/logs/archive?admin_password=管理密码
+归档当前日志：curl -X POST {BASE_URL}/api/v2/sys/management/logs/rotate -H "Content-Type: application/json" -d '{"admin_password":"管理密码"}'
+
+【⑲ JS Challenge 人机验证】（v3.5 新增）
+浏览器直接访问 /challenge 即可看到挑战页面
+
+【⑳ HMAC签名信息】（v3.5 新增）
+curl {BASE_URL}/api/v2/sys/auth/signature-info
+
+【㉑ 浏览器指纹管理】（v3.5.1 新增）
+查看所有指纹：curl {BASE_URL}/api/v2/sys/management/fingerprints?admin_password=管理密码
+注：前端自动采集Canvas+WebGL+字体+Audio等7维指纹，登录时自动关联用户
+24小时内指纹变化超3次自动封禁设备
+
+【㉒ 请求间隔分析】（v3.5.1 新增）
+自动检测：服务端对所有API请求自动分析请求间隔规律性
+CV<0.15（变异系数）且平均间隔<500ms → 疑似自动化，连续4次触发封禁IP
+
+【㉓ 鼠标轨迹分析】（v3.5.1 新增）
+自动采集：前端每10秒提交一批鼠标移动数据
+检测直线段比例和速度变化，疑似机器人时记录安全告警
+
+【㉔ v4.0 安全增强】（v4.0 新增）
+- 管理密码从环境变量读取（不再硬编码）
+- 密码哈希升级为 bcrypt（带随机盐）
+- Session ID 使用 crypto.randomUUID()
+- 管理接口强制 HMAC 签名验证
+- CSRF 保护（Origin/Referer 头检查）
+- Content-Security-Policy 响应头
+- Refresh Token 轮换（用后即废）
+- 密钥文件权限加固（chmod 600）
+- 资源过载自动保护性关闭
+- 错误信息最小化（不泄露内部实现）
+
+=====================================
+日常最简流程：手机重启后 → 设置ADMIN_PASSWORD → 跑① → 另开窗口跑 cpolar http http://localhost:3000
+→ 页面 🔗我的主机网址 卡片里看最新地址
+出问题按 ②⑥⑦ 顺序排查
+v3.5.0 更新：HMAC-SHA256签名验证 | 账户锁定+异地登录检测 | JWT短有效期+Refresh Token | JS Challenge | 文件类型魔术字节检测 | 增强蜜罐 | 境外IP检测 | 日志归档 | 错误信息最小化 | 压缩炸弹检测
+v3.5.1 更新：浏览器指纹采集+分析 | 请求间隔规律性检测 | 鼠标轨迹人机分析
+v4.0.0 更新：零信任安全加固 - bcrypt密码哈希 | CSRF保护 | CSP头 | 管理接口HMAC签名 | Token轮换 | 密钥权限加固 | 资源保护模式 | 错误信息最小化 | SessionID安全随机
+=====================================
