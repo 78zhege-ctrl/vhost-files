@@ -25,15 +25,17 @@
       }
     });
   }
-  // 全屏请求（增强沉浸感 + 部分浏览器要求全屏才能锁方向）
-  document.addEventListener('click',function firstClick(){
-    document.removeEventListener('click',firstClick);
+  // 全屏请求：改为点击空白区域触发，不拦截按钮点击
+  document.addEventListener('click',function(e){
+    // 如果点击的是按钮/链接，不触发全屏
+    if(e.target.closest('button')||e.target.closest('a')||e.target.closest('input')||e.target.closest('select')) return;
+    if(document.fullscreenElement) return;
     try{
       var el=document.documentElement;
       if(el.requestFullscreen){ el.requestFullscreen().catch(function(){}); }
       else if(el.webkitRequestFullscreen){ el.webkitRequestFullscreen(); }
-    }catch(e){}
-  },{once:true});
+    }catch(_){}
+  });
 })();
 </script>
 <style>
