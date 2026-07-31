@@ -475,6 +475,65 @@ body.mobile.layout-edit #layoutEditorBar { display:flex; }
 </div>
 </div>
 </div>
+
+<!-- ===== 紧急修复：菜单按钮立即绑定，不依赖 three.js ===== -->
+<script>
+(function(){
+  var el = function(id){ return document.getElementById(id); };
+  window.showPanel = function(id){
+    var mHome = el('mHome');
+    if(mHome) mHome.classList.toggle('hidden', id !== 'mHome');
+    ['mPlay','mCamp','mSet'].forEach(function(pid){
+      var p = el(pid);
+      if(p) p.classList.toggle('hidden', pid !== id);
+    });
+  };
+  document.querySelectorAll('.navBtn').forEach(function(b){
+    b.onclick = function(){
+      if(window.AudioSys && window.AudioSys.resume) window.AudioSys.resume();
+      window.showPanel(b.dataset.p);
+    };
+  });
+  document.querySelectorAll('.backBtn').forEach(function(b){
+    b.onclick = function(){
+      if(window.AudioSys && window.AudioSys.teardown) window.AudioSys.teardown();
+      window.showPanel('mHome');
+    };
+  });
+  var mpBtn = el('mpMenuBtn');
+  if(mpBtn){
+    mpBtn.onclick = function(){
+      if(window.AudioSys && window.AudioSys.resume) window.AudioSys.resume();
+      if(window.MPUI && window.MPUI.openLobby){
+        window.MPUI.openLobby();
+      } else {
+        alert('联机模块加载中，请稍候再试');
+      }
+    };
+  }
+  // 提前创建 MPUI 占位
+  if(!window.MPUI){
+    window.MPUI = {
+      openLobby: function(){ alert('联机模块加载中，请稍候再试'); },
+      closeLobby: function(){},
+      createRoom: function(){},
+      showJoinRoom: function(){},
+      quickMatch: function(){},
+      showRoomList: function(){},
+      backToMenu: function(){},
+      doCreateRoom: function(){},
+      doJoinRoom: function(){},
+      toggleReady: function(){},
+      startMatch: function(){},
+      leaveRoom: function(){},
+      sendChat: function(){},
+      addChatMessage: function(){},
+      updateRoomLobby: function(){}
+    };
+  }
+})();
+</script>
+
 <div id="deploy" class="screen hidden">
 <div class="panel">
 <h1 class="title" style="font-size:30px">部 署</h1>
