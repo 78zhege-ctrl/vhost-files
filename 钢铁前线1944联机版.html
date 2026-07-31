@@ -405,6 +405,7 @@ body.mobile.layout-edit #layoutEditorBar { display:flex; }
 <button class="bigBtn navBtn" data-p="mPlay">开 始 游 戏</button>
 <button class="bigBtn navBtn" data-p="mCamp">选 择 战 役</button>
 <button class="bigBtn navBtn" data-p="mSet">游 戏 设 置</button>
+<button class="bigBtn" id="mpMenuBtn" style="background:linear-gradient(180deg,#5a4030,#3a2818);border-color:#a07040;color:#f0d8a0;">联 机 对 战</button>
 </div>
 <div id="menuVer">STEEL FRONT · WWII CAMPAIGNS</div>
 </div>
@@ -8738,6 +8739,17 @@ document.querySelectorAll('.navBtn').forEach(b=>{
 b.onclick=()=>{ AudioSys.resume&&AudioSys.resume(); showPanel(b.dataset.p); };
 });
 document.querySelectorAll('.backBtn').forEach(b=>{ b.onclick=()=>{ if(window.AudioSys) AudioSys.teardown(); showPanel('mHome'); }; });
+// 联机对战按钮
+if(el('mpMenuBtn')){
+  el('mpMenuBtn').onclick=()=>{
+    if(window.MPUI&&window.MPUI.openLobby){
+      AudioSys.resume&&AudioSys.resume();
+      window.MPUI.openLobby();
+    }else{
+      alert('联机模块加载中，请稍候再试');
+    }
+  };
+}
 // 触控按键大小
 {
 const stored=parseInt(localStorage.getItem('sf_tsize')||'100');
