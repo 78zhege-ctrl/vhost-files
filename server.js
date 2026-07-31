@@ -30,12 +30,14 @@ const PUBLIC_DIR = path.join(__dirname, 'public');
 const LOG_DIR = path.join(DATA_DIR, 'logs');
 const TOKEN_EXPIRY = '15m';
 const REFRESH_EXPIRY = '7d';
-const MAX_FILE_SIZE = 50 * 1024 * 1024;
+const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
 
+// 确保目录存在
 [DATA_DIR, HOSTS_DIR, PUBLIC_DIR, LOG_DIR].forEach(d => {
   if (!fs.existsSync(d)) fs.mkdirSync(d, { recursive: true });
 });
 
+// ============ 数据持久化 ============
 let DB = { users: {}, hosts: {}, sessions: {}, refreshTokens: {}, blockedIPs: {}, ipBehavior: {}, fingerprints: {}, mouseData: {}, nonces: {}, auditLog: [], lockouts: [], whitelist: [] };
 const DB_FILE = path.join(DATA_DIR, 'db.json');
 const AUDIT_FILE = path.join(DATA_DIR, 'audit.json');
@@ -62,6 +64,7 @@ function saveBlocked() {
 }
 loadDB(); loadAudit(); loadBlocked();
 
+// ============ 工具函数 ============
 function generateUID() { return crypto.randomBytes(10).toString('hex'); }
 function generateSessionId() { return 'sess_' + crypto.randomUUID(); }
 function getClientIP(req) { return req.headers['cf-connecting-ip'] || req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.headers['x-real-ip'] || req.socket.remoteAddress?.replace('::ffff:', '') || '127.0.0.1'; }
@@ -69,6 +72,7 @@ function hashPassword(password) { return crypto.createHash('sha256').update(pass
 function sanitize(str) { return String(str).replace(/[<>]/g, '').substring(0, 200); }
 function logAudit(action, ip, detail) { DB.auditLog.push({ time: new Date().toISOString(), action, ip, detail }); saveAudit(); }
 
+// bcrypt 兼容层
 let bcrypt = null;
 try { bcrypt = require('bcryptjs'); } catch (e) {}
 function hashPasswordBcrypt(password) {
@@ -80,6 +84,7 @@ function verifyPasswordBcrypt(password, hash) {
   return hashPassword(password) === hash;
 }
 
+// v4.0: AES-256-GCM 加密主机密码
 function encryptHostPassword(plaintext) {
   const key = crypto.createHash('sha256').update(JWT_SECRET).digest();
   const iv = crypto.randomBytes(12);
@@ -108,6 +113,7 @@ function decryptHostPassword(ciphertext) {
   }
 }
 
+// HMAC-SHA256 签名
 function generateHMAC(method, urlPath, timestamp, nonce, bodyHash) {
   const signStr = method + '+' + urlPath + '+' + timestamp + '+' + nonce + '+' + bodyHash;
   return crypto.createHmac('sha256', HMAC_SECRET).update(signStr).digest('hex');
@@ -117,6 +123,7 @@ function verifyHMAC(method, urlPath, timestamp, nonce, bodyHash, signature) {
   return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(signature));
 }
 
+// 密码强度验证
 function validatePasswordStrength(password) {
   if (!password || password.length < 8) return '密码至少8个字符';
   if (!/[A-Z]/.test(password) && !/[a-z]/.test(password)) return '密码需包含字母';
@@ -129,6 +136,7 @@ function verifyAdmin(pw) {
   return pw === ACTUAL_ADMIN_PASSWORD;
 }
 
+// ============ 安全模块 ============
 class SecurityModule {
   constructor() {
     this.requestCounts = {};
@@ -180,12 +188,17 @@ class SecurityModule {
     return true;
   }
 
+  // ⚠️ 修复：不再自动封禁 IP，只记录日志
   blockIP(ip, reason, durationMs) {
     const now = Date.now();
     console.log(`[安全-仅记录] IP: ${ip}, 原因: ${reason}, 时长: ${durationMs}ms`);
+    // 不真正封禁，只记录到行为日志
     if (!DB.ipBehavior[ip]) DB.ipBehavior[ip] = { score: 100, events: [], lastSeen: now };
     DB.ipBehavior[ip].events.push({ time: new Date().toISOString(), reason, action: 'blocked_but_not_applied' });
     DB.ipBehavior[ip].score = Math.max(DB.ipBehavior[ip].score - 5, 0);
+    // 如果确实要封禁，改下面的逻辑
+    // DB.blockedIPs[ip] = { time: now, reason, until: now + durationMs };
+    // saveBlocked();
   }
 
   isBlocked(ip) {
@@ -211,6 +224,7 @@ class SecurityModule {
 
 const security = new SecurityModule();
 
+// ============ Express 初始化 ============
 const app = express();
 const server = http.createServer(app);
 
@@ -221,8 +235,9 @@ app.get('/', (req, res) => {
   res.setHeader('Content-Security-Policy', "default-src * 'unsafe-inline' 'unsafe-eval'; script-src * 'unsafe-inline' 'unsafe-eval'; style-src * 'unsafe-inline'; connect-src * ws: wss:; img-src * data: blob:; media-src *; font-src *; frame-src *; object-src *");
   res.removeHeader('X-Frame-Options');
   const users = Object.keys(DB.users).length;
+  const hosts = Object.keys(DB.hosts).length;
   const now = new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
-  res.send('<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>手机服务器 · 首页</title><style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:linear-gradient(135deg,#0a0a1a 0%,#1a1040 50%,#0d0d2b 100%);min-height:100vh;display:flex;align-items:center;justify-content:center;color:#e0e0f0;padding:20px}.container{text-align:center;max-width:420px;width:100%}.icon{font-size:64px;margin-bottom:8px;filter:drop-shadow(0 0 20px rgba(100,100,255,.3))}.title{font-size:24px;font-weight:700;margin-bottom:8px;letter-spacing:2px}.subtitle{font-size:14px;color:#8888aa;margin-bottom:32px}.btn{display:block;width:100%;padding:14px;margin:10px 0;font-size:16px;border-radius:10px;border:none;cursor:pointer;text-decoration:none;letter-spacing:1px;text-align:center}.btn-primary{background:linear-gradient(135deg,#6b4ee6,#8b5cf6);color:#fff;box-shadow:0 4px 20px rgba(107,78,230,.3)}.btn-secondary{background:transparent;color:#aaa;border:1px solid rgba(255,255,255,.1)}.btn-secondary:hover{color:#fff;border-color:rgba(255,255,255,.3)}.status-card{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.06);border-radius:12px;padding:16px;margin-top:24px;text-align:left}.status-row{display:flex;justify-content:space-between;padding:8px 0;font-size:13px;border-bottom:1px solid rgba(255,255,255,.04)}.status-row:last-child{border-bottom:none}.status-label{color:#8888aa}.status-value{color:#c0c0e0}.status-ok{color:#10b981}</style></head><body><div class="container"><div class="icon">🚀</div><div class="title">手机服务器运行正常</div><div class="subtitle">你的 Node.js 多租户虚拟主机已成功启动</div><a href="/panel.html" class="btn btn-primary">🏠 我的虚拟主机</a><a href="/panel.html" class="btn btn-secondary">⚙️ 管理员后台</a><div class="status-card"><div class="status-row"><span class="status-label">当前时间</span><span class="status-value">' + now + '</span></div><div class="status-row"><span class="status-label">Node.js 服务</span><span class="status-value status-ok">✅ 已启用</span></div><div class="status-row"><span class="status-label">注册用户</span><span class="status-value">' + users + ' 人</span></div><div class="status-row"><span class="status-label">在线状态</span><span class="status-value status-ok">🟢 正常</span></div></div></div></body></html>');
+  res.send('<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>手机服务器 · 首页</title><style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:linear-gradient(135deg,#0a0a1a 0%,#1a1040 50%,#0d0d2b 100%);min-height:100vh;display:flex;align-items:center;justify-content:center;color:#e0e0f0;padding:20px}.container{text-align:center;max-width:420px;width:100%}.icon{font-size:64px;margin-bottom:8px;filter:drop-shadow(0 0 20px rgba(100,100,255,.3))}.title{font-size:24px;font-weight:700;margin-bottom:8px;letter-spacing:2px}.subtitle{font-size:14px;color:#8888aa;margin-bottom:32px}.btn{display:block;width:100%;padding:14px;margin:10px 0;font-size:16px;border-radius:10px;border:none;cursor:pointer;text-decoration:none;letter-spacing:1px;text-align:center}.btn-primary{background:linear-gradient(135deg,#6b4ee6,#8b5cf6);color:#fff;box-shadow:0 4px 20px rgba(107,78,230,.3)}.btn-secondary{background:transparent;color:#aaa;border:1px solid rgba(255,255,255,.1)}.btn-secondary:hover{color:#fff;border-color:rgba(255,255,255,.3)}.status-card{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.06);border-radius:12px;padding:16px;margin-top:24px;text-align:left}.status-row{display:flex;justify-content:space-between;padding:8px 0;font-size:13px;border-bottom:1px solid rgba(255,255,255,.04)}.status-row:last-child{border-bottom:none}.status-label{color:#8888aa}.status-value{color:#c0c0e0}.status-ok{color:#10b981}.footer{position:fixed;bottom:20px;text-align:center;width:100%;left:0;font-size:12px;color:#555}</style></head><body><div class="container"><div class="icon">🚀</div><div class="title">手机服务器运行正常</div><div class="subtitle">你的 Node.js 多租户虚拟主机已成功启动</div><a href="/panel.html" class="btn btn-primary">🏠 我的虚拟主机</a><a href="/panel.html" class="btn btn-secondary">⚙️ 管理员后台</a><div class="status-card"><div class="status-row"><span class="status-label">当前时间</span><span class="status-value">' + now + '</span></div><div class="status-row"><span class="status-label">Nginx 代理</span><span class="status-value status-ok">✅ 已启用</span></div><div class="status-row"><span class="status-label">注册用户</span><span class="status-value">' + users + ' 人</span></div><div class="status-row"><span class="status-label">在线状态</span><span class="status-value status-ok">🟢 正常</span></div></div></div></body></html>');
 });
 
 // ============ 面板页面（必须在 CSP 中间件之前） ============
@@ -243,21 +258,42 @@ app.get('/panel.html', (req, res) => {
 app.get('/host.html', (req, res) => res.redirect('/panel.html'));
 app.get('/admin.html', (req, res) => res.redirect('/panel.html'));
 
+// ============ 前端安全 ============
 app.use((req, res, next) => {
-  const ip = getClientIP(req);
-  if (security.isBlocked(ip)) return res.status(403).end();
+  const ip = req.headers['cf-connecting-ip'] || req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.headers['x-real-ip'] || req.socket.remoteAddress?.replace('::ffff:', '') || '127.0.0.1';
+
+  // 已封禁 IP
+  if (security.isBlocked(ip)) {
+    return res.status(403).end();
+  }
+
+  // 攻击模式
   if (security.attackMode && !security.isWhitelisted(ip)) {
     const p = req.path.toLowerCase();
-    if (!p.startsWith('/api/v2/auth/') && !p.startsWith('/api/v2/gateway/health')) return res.status(503).end();
+    if (!p.startsWith('/api/v2/auth/') && !p.startsWith('/api/v2/gateway/health')) {
+      return res.status(503).end();
+    }
   }
+
+  // 已知扫描器 UA
   const ua = (req.headers['user-agent'] || '').toLowerCase();
-  const scannerPatterns = ['zgrab', 'masscan', 'nmap', 'nessus', 'burp', 'sqlmap', 'nikto', 'gobuster', 'dirbuster', 'wpscan', 'acunetix', 'netsparker', 'hydra', 'medusa', 'ncrack', 'brutus', 'metasploit', 'python-requests', 'python-urllib', 'go-http-client', 'curl/', 'libcurl', 'wget', 'axios', 'node-fetch', 'okhttp', 'scrapy', 'apache-httpclient', 'java/', 'jakarta', 'bot', 'crawler', 'spider', 'scanner', 'scan'];
+  const scannerPatterns = [
+    'zgrab', 'masscan', 'nmap', 'nessus', 'burp', 'sqlmap', 'nikto',
+    'gobuster', 'dirbuster', 'wpscan', 'acunetix', 'netsparker',
+    'hydra', 'medusa', 'ncrack', 'brutus', 'metasploit',
+    'python-requests', 'python-urllib', 'go-http-client', 'curl/',
+    'libcurl', 'wget', 'axios', 'node-fetch', 'okhttp',
+    'scrapy', 'apache-httpclient', 'java/', 'jakarta',
+    'bot', 'crawler', 'spider', 'scanner', 'scan'
+  ];
   if (ua && scannerPatterns.some(p => ua.includes(p))) {
     security.blockIP(ip, '扫描器UA', 60 * 60 * 1000);
     return res.status(403).end();
   }
-  const rpath = req.path.toLowerCase();
-  if (rpath === '/' || rpath === '') {
+
+  // 根路径高频扫描
+  const path = req.path.toLowerCase();
+  if (path === '/' || path === '') {
     const rk = 'root:' + ip;
     if (!security.requestCounts) security.requestCounts = {};
     if (!security.requestCounts[rk]) security.requestCounts[rk] = { count: 0, reset: Date.now() + 60000 };
@@ -269,14 +305,17 @@ app.use((req, res, next) => {
       return res.status(403).end();
     }
   }
+
   next();
 });
 
+// 基础中间件
 app.use(compression());
 app.use(cors({ origin: true, credentials: true, methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'], allowedHeaders: ['Content-Type', 'Authorization', 'x-request-time', 'x-request-nonce', 'x-request-signature', 'x-session-id', 'x-device-id'] }));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
+// CSP 头（仅对 API 和管理页面）
 app.use((req, res, next) => {
   res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' ws: wss:; font-src 'self'; frame-src 'none'; object-src 'none'; base-uri 'self'; form-action 'self'");
   res.setHeader('X-Content-Type-Options', 'nosniff');
@@ -288,6 +327,7 @@ app.use((req, res, next) => {
   next();
 });
 
+// CSRF 保护
 app.use((req, res, next) => {
   if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(req.method)) {
     const origin = req.headers.origin || req.headers.referer;
@@ -297,7 +337,9 @@ app.use((req, res, next) => {
         const reqHost = req.headers.host?.split(':')[0] || '';
         const allowedHosts = [reqHost, 'localhost', '127.0.0.1'];
         if (!allowedHosts.some(h => originHost === h || originHost.endsWith('.' + h))) {
-          if (req.headers.origin && !req.headers.referer) return res.status(403).json({ error: '请求被拒绝' });
+          if (req.headers.origin && !req.headers.referer) {
+            return res.status(403).json({ error: '请求被拒绝' });
+          }
         }
       } catch (e) {}
     }
@@ -305,104 +347,244 @@ app.use((req, res, next) => {
   next();
 });
 
+// 请求日志 + 安全检测
 app.use((req, res, next) => {
   const ip = getClientIP(req);
-  const rpath = req.path.toLowerCase();
-  if (security.isBlocked(ip)) { security.updateBehaviorScore(ip, 'blocked_access'); return res.status(403).json({ error: '请求被拒绝' }); }
-  if (security.attackMode && !security.isWhitelisted(ip)) {
-    if (!rpath.startsWith('/api/v2/auth/') && !rpath.startsWith('/api/v2/gateway/health')) return res.status(503).json({ error: '服务暂时不可用' });
+  const path = req.path.toLowerCase();
+
+  if (security.isBlocked(ip)) {
+    security.updateBehaviorScore(ip, 'blocked_access');
+    return res.status(403).json({ error: '请求被拒绝' });
   }
-  if (security.isHoneypot(rpath)) { security.updateBehaviorScore(ip, 'honeypot'); security.blockIP(ip, '蜜罐触发', 24 * 60 * 60 * 1000); return res.status(403).json({ error: '请求被拒绝' }); }
-  if (!security.checkRateLimit(req)) { security.updateBehaviorScore(ip, 'rate_limit'); return res.status(429).json({ error: '请求过于频繁' }); }
+
+  if (security.attackMode && !security.isWhitelisted(ip)) {
+    if (path.startsWith('/api/v2/auth/') || path.startsWith('/api/v2/gateway/health')) {
+      // 允许登录和健康检查
+    } else {
+      return res.status(503).json({ error: '服务暂时不可用' });
+    }
+  }
+
+  // 蜜罐检测
+  if (security.isHoneypot(path)) {
+    security.updateBehaviorScore(ip, 'honeypot');
+    security.blockIP(ip, '蜜罐触发', 24 * 60 * 60 * 1000);
+    return res.status(403).json({ error: '请求被拒绝' });
+  }
+
+  // 频率限制
+  if (!security.checkRateLimit(req)) {
+    security.updateBehaviorScore(ip, 'rate_limit');
+    return res.status(429).json({ error: '请求过于频繁' });
+  }
+
   next();
 });
 
+// ============ 静态文件 ============
 app.use('/h', express.static(HOSTS_DIR, { index: 'index.html', dotfiles: 'deny' }));
 app.use(express.static(PUBLIC_DIR, { index: false }));
 
+// ============ 认证接口 ============
+
+// 注册
 app.post('/api/v2/auth/session/create', (req, res) => {
   try {
     const ip = getClientIP(req);
     const { username, password } = req.body;
+
     if (!username || !password) return res.status(400).json({ error: '参数不完整' });
     const uname = sanitize(username);
     if (uname.length < 2 || uname.length > 30) return res.status(400).json({ error: '用户名长度2-30个字符' });
+
     const pwError = validatePasswordStrength(password);
     if (pwError) return res.status(400).json({ error: pwError });
+
     if (DB.users[uname]) return res.status(409).json({ error: '用户名已存在' });
+
     const uid = generateUID();
     const hostPassword = crypto.randomBytes(8).toString('hex');
-    const userData = { id: uid, username: uname, password: hashPasswordBcrypt(password), hostPassword: encryptHostPassword(hostPassword), plan: 'free', planName: '免费版', registered: new Date().toISOString(), lastLogin: new Date().toISOString(), knownIPs: [ip], spaceUsedMB: 0, spaceLimitMB: 100, sessions: [], isNewUserGrace: true, graceUntil: Date.now() + 24 * 60 * 60 * 1000, banned: false, banReason: null };
+    const userData = {
+      id: uid,
+      username: uname,
+      password: hashPasswordBcrypt(password),
+      hostPassword: encryptHostPassword(hostPassword),
+      plan: 'free',
+      planName: '免费版',
+      registered: new Date().toISOString(),
+      lastLogin: new Date().toISOString(),
+      knownIPs: [ip],
+      spaceUsedMB: 0,
+      spaceLimitMB: 100,
+      sessions: [],
+      isNewUserGrace: true,
+      graceUntil: Date.now() + 24 * 60 * 60 * 1000,
+      banned: false,
+      banReason: null
+    };
+
     DB.users[uname] = userData;
     DB.hosts[uid] = { owner: uname, password: hostPassword, createdAt: new Date().toISOString(), files: [] };
+
     const hostDir = path.join(HOSTS_DIR, uid);
     if (!fs.existsSync(hostDir)) fs.mkdirSync(hostDir, { recursive: true });
+
     const token = jwt.sign({ id: uid, username: uname, plan: 'free' }, JWT_SECRET, { expiresIn: TOKEN_EXPIRY });
     const refreshToken = jwt.sign({ id: uid, username: uname, type: 'refresh' }, REFRESH_SECRET, { expiresIn: REFRESH_EXPIRY });
     DB.refreshTokens[refreshToken] = { userId: uid, username: uname, createdAt: Date.now() };
+
     saveDB();
     logAudit('register', ip, `用户注册: ${uname}`);
-    res.json({ success: true, token, refreshToken, host: { uid, password: hostPassword, url: `/h/${uid}/` } });
-  } catch (e) { console.error('[注册]', e.message); res.status(500).json({ error: '服务器内部错误' }); }
+
+    res.json({
+      success: true,
+      token,
+      refreshToken,
+      host: { uid, password: hostPassword, url: `/h/${uid}/` }
+    });
+  } catch (e) {
+    console.error('[注册]', e.message);
+    res.status(500).json({ error: '服务器内部错误' });
+  }
 });
 
+// 登录（兼容 panel.html 旧接口）
+app.post('/api/v2/auth/session/init', (req, res) => {
+  try {
+    const ip = getClientIP(req);
+    const { username, password } = req.body;
+
+    if (!username || !password) return res.status(400).json({ error: '参数不完整' });
+    const uname = sanitize(username);
+
+    const user = DB.users[uname];
+    if (!user) return res.status(401).json({ error: '用户名或密码错误' });
+
+    if (user.banned) return res.status(403).json({ error: '账户已被封禁', reason: user.banReason });
+
+    if (!verifyPasswordBcrypt(password, user.password)) {
+      logAudit('login_failed', ip, `登录失败: ${uname}`);
+      return res.status(401).json({ error: '用户名或密码错误' });
+    }
+
+    user.lastLogin = new Date().toISOString();
+    if (!user.knownIPs.includes(ip)) user.knownIPs.push(ip);
+
+    const token = jwt.sign({ id: user.id, username: uname, plan: user.plan }, JWT_SECRET, { expiresIn: TOKEN_EXPIRY });
+    const refreshToken = jwt.sign({ id: user.id, username: uname, type: 'refresh' }, REFRESH_SECRET, { expiresIn: REFRESH_EXPIRY });
+    DB.refreshTokens[refreshToken] = { userId: user.id, username: uname, createdAt: Date.now() };
+
+    saveDB();
+    logAudit('login', ip, `用户登录: ${uname}`);
+
+    res.json({ token, refreshToken, user: { id: user.id, username: user.username, plan: user.plan, planName: user.planName } });
+  } catch (e) {
+    console.error('[登录]', e.message);
+    res.status(500).json({ error: '服务器内部错误' });
+  }
+});
+
+// 登录
 app.post('/api/v2/auth/session/authenticate', (req, res) => {
   try {
     const ip = getClientIP(req);
     const { username, password } = req.body;
+
     if (!username || !password) return res.status(400).json({ error: '参数不完整' });
     const uname = sanitize(username);
+
     const user = DB.users[uname];
     if (!user) return res.status(401).json({ error: '用户名或密码错误' });
+
     if (user.banned) return res.status(403).json({ error: '账户已被封禁', reason: user.banReason });
-    if (!verifyPasswordBcrypt(password, user.password)) { logAudit('login_failed', ip, `登录失败: ${uname}`); return res.status(401).json({ error: '用户名或密码错误' }); }
+
+    if (!verifyPasswordBcrypt(password, user.password)) {
+      logAudit('login_failed', ip, `登录失败: ${uname}`);
+      return res.status(401).json({ error: '用户名或密码错误' });
+    }
+
     user.lastLogin = new Date().toISOString();
     if (!user.knownIPs.includes(ip)) user.knownIPs.push(ip);
+
     const token = jwt.sign({ id: user.id, username: uname, plan: user.plan }, JWT_SECRET, { expiresIn: TOKEN_EXPIRY });
     const refreshToken = jwt.sign({ id: user.id, username: uname, type: 'refresh' }, REFRESH_SECRET, { expiresIn: REFRESH_EXPIRY });
     DB.refreshTokens[refreshToken] = { userId: user.id, username: uname, createdAt: Date.now() };
+
     saveDB();
     logAudit('login', ip, `用户登录: ${uname}`);
-    res.json({ success: true, token, refreshToken, user: { id: user.id, username: user.username, plan: user.plan, planName: user.planName } });
-  } catch (e) { console.error('[登录]', e.message); res.status(500).json({ error: '服务器内部错误' }); }
+
+    res.json({
+      success: true,
+      token,
+      refreshToken,
+      user: { id: user.id, username: user.username, plan: user.plan, planName: user.planName }
+    });
+  } catch (e) {
+    console.error('[登录]', e.message);
+    res.status(500).json({ error: '服务器内部错误' });
+  }
 });
 
+// Token 刷新
 app.post('/api/v2/auth/session/refresh', (req, res) => {
   try {
     const { refreshToken } = req.body;
     if (!refreshToken) return res.status(400).json({ error: '缺少 refreshToken' });
+
     if (!DB.refreshTokens[refreshToken]) return res.status(401).json({ error: 'refreshToken 无效或已过期' });
+
     const decoded = jwt.verify(refreshToken, REFRESH_SECRET);
     const user = DB.users[decoded.username];
     if (!user) return res.status(401).json({ error: '用户不存在' });
+
+    // Token 轮换：旧 token 作废
     delete DB.refreshTokens[refreshToken];
+
     const newToken = jwt.sign({ id: user.id, username: user.username, plan: user.plan }, JWT_SECRET, { expiresIn: TOKEN_EXPIRY });
     const newRefresh = jwt.sign({ id: user.id, username: user.username, type: 'refresh' }, REFRESH_SECRET, { expiresIn: REFRESH_EXPIRY });
     DB.refreshTokens[newRefresh] = { userId: user.id, username: user.username, createdAt: Date.now() };
+
     saveDB();
     res.json({ success: true, token: newToken, refreshToken: newRefresh });
-  } catch (e) { console.error('[Token刷新]', e.message); res.status(401).json({ error: 'refreshToken 无效' }); }
+  } catch (e) {
+    console.error('[Token刷新]', e.message);
+    res.status(401).json({ error: 'refreshToken 无效' });
+  }
 });
 
+// ============ 认证中间件 ============
 function authMiddleware(req, res, next) {
   const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) return res.status(401).json({ error: '未授权' });
-  try { const token = authHeader.split(' ')[1]; const decoded = jwt.verify(token, JWT_SECRET); req.user = decoded; next(); }
-  catch (e) { return res.status(401).json({ error: 'Token 无效或已过期' }); }
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ error: '未授权' });
+  }
+  try {
+    const token = authHeader.split(' ')[1];
+    const decoded = jwt.verify(token, JWT_SECRET);
+    req.user = decoded;
+    next();
+  } catch (e) {
+    return res.status(401).json({ error: 'Token 无效或已过期' });
+  }
 }
 
+// HMAC 中间件
 function hmacMiddleware(req, res, next) {
   const { admin_password } = req.body || req.query || {};
-  if (admin_password && verifyAdmin(admin_password)) return next();
+  if (admin_password && verifyAdmin(admin_password)) {
+    return next();
+  }
   return res.status(403).json({ error: '管理密码错误' });
 }
 
+// ============ 用户接口 ============
 app.get('/api/v2/user/profile/detail', authMiddleware, (req, res) => {
   const user = DB.users[req.user.username];
   if (!user) return res.status(404).json({ error: '用户不存在' });
   res.json({ success: true, user: { id: user.id, username: user.username, plan: user.plan, planName: user.planName, registered: user.registered, lastLogin: user.lastLogin } });
 });
 
+// ============ IP 管理 ============
 app.post('/api/v2/sys/management/ips/unban', hmacMiddleware, (req, res) => {
   const { ip } = req.body;
   if (ip && DB.blockedIPs[ip]) { delete DB.blockedIPs[ip]; saveBlocked(); return res.json({ success: true, msg: 'IP已解封' }); }
@@ -445,42 +627,59 @@ app.get('/api/v2/sys/management/accounts/lockouts', hmacMiddleware, (req, res) =
   res.json({ success: true, lockouts: DB.lockouts });
 });
 
+// 资源监控
 app.get('/api/v2/sys/resources', hmacMiddleware, (req, res) => {
   const mem = process.memoryUsage();
   res.json({ success: true, memory: { heapUsed: Math.round(mem.heapUsed / 1024 / 1024) + 'MB', heapTotal: Math.round(mem.heapTotal / 1024 / 1024) + 'MB', rss: Math.round(mem.rss / 1024 / 1024) + 'MB' }, uptime: Math.round(process.uptime()) + 's' });
 });
 
+// 服务器信息
 app.get('/api/v2/server/info', (req, res) => {
   res.json({ version: 'v4.0.0', name: '手机多租户虚拟主机', port: PORT });
 });
 
+// 健康检查
 app.get('/api/v2/gateway/health', (req, res) => {
   res.json({ status: 'ok', uptime: process.uptime() });
 });
 
+// 版本
 app.get('/api/v2/gateway/version', (req, res) => {
   res.json({ version: 'v4.0.0', build: '2026-07-31' });
 });
 
+// 签名信息
 app.get('/api/v2/sys/auth/signature-info', (req, res) => {
   res.json({ algorithm: 'HMAC-SHA256' });
 });
 
+// 指纹管理
 app.get('/api/v2/sys/management/fingerprints', hmacMiddleware, (req, res) => {
   res.json({ success: true, fingerprints: DB.fingerprints });
 });
 
+// 日志归档
 app.get('/api/v2/sys/management/logs/archive', hmacMiddleware, (req, res) => {
   res.json({ success: true, auditLogCount: DB.auditLog.length });
 });
 
+// 会话管理
 app.get('/api/v2/user/sessions', authMiddleware, (req, res) => {
   res.json({ success: true, sessions: [] });
 });
 
-app.use((err, req, res, next) => { console.error('[错误]', err.message); res.status(500).json({ error: '服务器内部错误' }); });
-app.use((req, res) => { res.status(404).json({ error: '页面不存在' }); });
+// ============ 错误处理 ============
+app.use((err, req, res, next) => {
+  console.error('[错误]', err.message);
+  res.status(500).json({ error: '服务器内部错误' });
+});
 
+// 404
+app.use((req, res) => {
+  res.status(404).json({ error: '页面不存在' });
+});
+
+// ============ 启动服务器 ============
 server.listen(PORT, () => {
   console.log('========================================');
   console.log('手机多租户虚拟主机 v4.0.0 安全加固版');
@@ -496,5 +695,6 @@ server.listen(PORT, () => {
   console.log('========================================');
 });
 
+// 优雅退出
 process.on('SIGTERM', () => { server.close(); process.exit(0); });
 process.on('SIGINT', () => { server.close(); process.exit(0); });
