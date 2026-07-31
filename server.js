@@ -15,7 +15,18 @@ const compression = require('compression');
 
 // ============ 配置 ============
 const PORT = process.env.PORT || 3000;
-const JWT_SECRET = process.env.JWT_SECRET || crypto.randomBytes(32).toString('hex');
+const SECRET_FILE = path.join(DATA_DIR, 'secret.key');
+let JWT_SECRET;
+if (process.env.JWT_SECRET) {
+  JWT_SECRET = process.env.JWT_SECRET;
+} else if (fs.existsSync(SECRET_FILE)) {
+  JWT_SECRET = fs.readFileSync(SECRET_FILE, 'utf8').trim();
+  console.log('[安全] 已加载持久化密钥');
+} else {
+  JWT_SECRET = crypto.randomBytes(32).toString('hex');
+  fs.writeFileSync(SECRET_FILE, JWT_SECRET);
+  console.log('[安全] 已生成并保存新密钥');
+}
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
 if (!ADMIN_PASSWORD) {
   console.error('[安全] 警告：未设置 ADMIN_PASSWORD 环境变量，使用随机密码');
@@ -38,7 +49,7 @@ const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
 });
 
 // ============ 数据持久化 ============
-let DB = { users: {}, hosts: {}, sessions: {}, refreshTokens: {}, blockedIPs: {}, ipBehavior: {}, fingerprints: {}, mouseData: {}, nonces: {}, auditLog: [], lockouts: [], whitelist: [] };
+let DB = { users: {}, hosts: {}, sessions: {}, refreshTokens: {}, blockedIPs: {}, ipBehavior: {}, fingerprints: {}, mouseData: {}, nonces: {}, cards: [], auditLog: [], lockouts: [], whitelist: [] };
 const DB_FILE = path.join(DATA_DIR, 'db.json');
 const AUDIT_FILE = path.join(DATA_DIR, 'audit.json');
 const FINGERPRINT_FILE = path.join(DATA_DIR, 'fingerprints.json');
@@ -568,9 +579,9 @@ function authMiddleware(req, res, next) {
   }
 }
 
-// HMAC 中间件
+// HMAC 中间件（兼容 GET query 和 POST body）
 function hmacMiddleware(req, res, next) {
-  const { admin_password } = req.body || req.query || {};
+  const admin_password = req.body?.admin_password || req.query?.admin_password;
   if (admin_password && verifyAdmin(admin_password)) {
     return next();
   }
@@ -607,10 +618,6 @@ app.post('/api/v2/sys/management/ips/whitelist/remove', hmacMiddleware, (req, re
 
 app.get('/api/v2/sys/management/ips/whitelist', hmacMiddleware, (req, res) => {
   res.json({ success: true, whitelist: DB.whitelist });
-});
-
-app.get('/api/v2/sys/management/ips/reputation', hmacMiddleware, (req, res) => {
-  res.json({ success: true, data: DB.ipBehavior });
 });
 
 app.get('/api/v2/sys/management/ips/behavior', hmacMiddleware, (req, res) => {
@@ -666,6 +673,87 @@ app.get('/api/v2/sys/management/logs/archive', hmacMiddleware, (req, res) => {
 // 会话管理
 app.get('/api/v2/user/sessions', authMiddleware, (req, res) => {
   res.json({ success: true, sessions: [] });
+});
+
+// ============ 管理后台 API ============
+
+// 统计概览
+app.get('/api/v2/sys/management/stats/overview', hmacMiddleware, (req, res) => {
+  const users = Object.values(DB.users);
+  const totalFiles = Object.values(DB.hosts).reduce((sum, h) => sum + (h.files ? h.files.length : 0), 0);
+  const bannedUsers = users.filter(u => u.banned).length;
+  const blockedIPs = Object.keys(DB.blockedIPs).length;
+  const attackLogs = DB.auditLog.filter(l => l.action === 'honeypot' || l.action === 'scanner' || l.action === 'blocked_access').slice(-20).map(l => ({ time: l.time, type: l.action, ip: l.ip, detail: l.detail }));
+  res.json({ total_users: users.length, total_files: totalFiles, banned_users: bannedUsers, blocked_ips: blockedIPs, total_cards: DB.cards.length, attack_logs: attackLogs });
+});
+
+// 用户列表
+app.get('/api/v2/sys/management/users/list', hmacMiddleware, (req, res) => {
+  const list = Object.values(DB.users).map(u => ({
+    username: u.username,
+    plan: u.plan,
+    space_used_mb: u.spaceUsedMB || 0,
+    known_ips: u.knownIPs || [],
+    banned: u.banned || false
+  }));
+  res.json(list);
+});
+
+// 封禁用户
+app.post('/api/v2/sys/management/ban/user', hmacMiddleware, (req, res) => {
+  const { username, reason } = req.body;
+  const user = DB.users[username];
+  if (!user) return res.status(404).json({ error: '用户不存在' });
+  user.banned = true;
+  user.banReason = reason || '违规';
+  saveDB();
+  logAudit('ban_user', getClientIP(req), `封禁用户: ${username}, 原因: ${reason}`);
+  res.json({ success: true, message: `已封禁用户 ${username}` });
+});
+
+// 解封用户
+app.post('/api/v2/sys/management/unban/user', hmacMiddleware, (req, res) => {
+  const { username } = req.body;
+  const user = DB.users[username];
+  if (!user) return res.status(404).json({ error: '用户不存在' });
+  user.banned = false;
+  user.banReason = null;
+  saveDB();
+  logAudit('unban_user', getClientIP(req), `解封用户: ${username}`);
+  res.json({ success: true, message: `已解封用户 ${username}` });
+});
+
+// 卡密生成
+app.post('/api/v2/sys/management/cards/generate', hmacMiddleware, (req, res) => {
+  const { plan, count } = req.body;
+  if (!plan || !count || count < 1 || count > 100) return res.status(400).json({ error: '参数错误' });
+  const codes = [];
+  for (let i = 0; i < count; i++) {
+    const code = 'CARD-' + crypto.randomBytes(8).toString('hex').toUpperCase();
+    DB.cards.push({ code, plan, used: false, used_by: null, used_at: null, created_at: new Date().toISOString() });
+    codes.push({ code, plan });
+  }
+  saveDB();
+  logAudit('card_generate', getClientIP(req), `生成${count}张卡密, 类型: ${plan}`);
+  res.json({ success: true, codes });
+});
+
+// 卡密列表
+app.get('/api/v2/sys/management/cards/list', hmacMiddleware, (req, res) => {
+  res.json(DB.cards.slice(-100));
+});
+
+// 封禁IP列表
+app.get('/api/v2/sys/management/ips/blocked', hmacMiddleware, (req, res) => {
+  const persistent = Object.entries(DB.blockedIPs).map(([ip, data]) => ({ ip, reason: data.reason, expireAt: new Date(data.until).toISOString() }));
+  res.json({ persistent_blocked: persistent, memory_blocked: [] });
+});
+
+// IP信誉列表
+app.get('/api/v2/sys/management/ips/reputation', hmacMiddleware, (req, res) => {
+  const entries = Object.entries(DB.ipBehavior).map(([ip, data]) => ({ ip, score: data.score, events: (data.events || []).length, bannedUsers: [] }));
+  const low = entries.filter(e => e.score <= 50).sort((a, b) => a.score - b.score);
+  res.json({ total: entries.length, low_reputation: low });
 });
 
 // ============ 错误处理 ============
