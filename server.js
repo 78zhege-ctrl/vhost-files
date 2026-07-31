@@ -11,8 +11,6 @@ const path = require('path');
 const jwt = require('jsonwebtoken');
 const multer = require('multer');
 const cors = require('cors');
-const ws = require('ws');
-const { MultiplayerServer } = require('./multiplayer-server');
 const compression = require('compression');
 
 // ============ 配置 ============
@@ -32,14 +30,12 @@ const PUBLIC_DIR = path.join(__dirname, 'public');
 const LOG_DIR = path.join(DATA_DIR, 'logs');
 const TOKEN_EXPIRY = '15m';
 const REFRESH_EXPIRY = '7d';
-const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
+const MAX_FILE_SIZE = 50 * 1024 * 1024;
 
-// 确保目录存在
 [DATA_DIR, HOSTS_DIR, PUBLIC_DIR, LOG_DIR].forEach(d => {
   if (!fs.existsSync(d)) fs.mkdirSync(d, { recursive: true });
 });
 
-// ============ 数据持久化 ============
 let DB = { users: {}, hosts: {}, sessions: {}, refreshTokens: {}, blockedIPs: {}, ipBehavior: {}, fingerprints: {}, mouseData: {}, nonces: {}, auditLog: [], lockouts: [], whitelist: [] };
 const DB_FILE = path.join(DATA_DIR, 'db.json');
 const AUDIT_FILE = path.join(DATA_DIR, 'audit.json');
@@ -66,7 +62,6 @@ function saveBlocked() {
 }
 loadDB(); loadAudit(); loadBlocked();
 
-// ============ 工具函数 ============
 function generateUID() { return crypto.randomBytes(10).toString('hex'); }
 function generateSessionId() { return 'sess_' + crypto.randomUUID(); }
 function getClientIP(req) { return req.headers['cf-connecting-ip'] || req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.headers['x-real-ip'] || req.socket.remoteAddress?.replace('::ffff:', '') || '127.0.0.1'; }
@@ -74,7 +69,6 @@ function hashPassword(password) { return crypto.createHash('sha256').update(pass
 function sanitize(str) { return String(str).replace(/[<>]/g, '').substring(0, 200); }
 function logAudit(action, ip, detail) { DB.auditLog.push({ time: new Date().toISOString(), action, ip, detail }); saveAudit(); }
 
-// bcrypt 兼容层
 let bcrypt = null;
 try { bcrypt = require('bcryptjs'); } catch (e) {}
 function hashPasswordBcrypt(password) {
@@ -86,7 +80,6 @@ function verifyPasswordBcrypt(password, hash) {
   return hashPassword(password) === hash;
 }
 
-// v4.0: AES-256-GCM 加密主机密码
 function encryptHostPassword(plaintext) {
   const key = crypto.createHash('sha256').update(JWT_SECRET).digest();
   const iv = crypto.randomBytes(12);
@@ -115,7 +108,6 @@ function decryptHostPassword(ciphertext) {
   }
 }
 
-// HMAC-SHA256 签名
 function generateHMAC(method, urlPath, timestamp, nonce, bodyHash) {
   const signStr = method + '+' + urlPath + '+' + timestamp + '+' + nonce + '+' + bodyHash;
   return crypto.createHmac('sha256', HMAC_SECRET).update(signStr).digest('hex');
@@ -125,7 +117,6 @@ function verifyHMAC(method, urlPath, timestamp, nonce, bodyHash, signature) {
   return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(signature));
 }
 
-// 密码强度验证
 function validatePasswordStrength(password) {
   if (!password || password.length < 8) return '密码至少8个字符';
   if (!/[A-Z]/.test(password) && !/[a-z]/.test(password)) return '密码需包含字母';
@@ -138,7 +129,6 @@ function verifyAdmin(pw) {
   return pw === ACTUAL_ADMIN_PASSWORD;
 }
 
-// ============ 安全模块 ============
 class SecurityModule {
   constructor() {
     this.requestCounts = {};
@@ -190,7 +180,6 @@ class SecurityModule {
     return true;
   }
 
-  // ⚠️ 修复：不再自动封禁 IP，只记录日志
   blockIP(ip, reason, durationMs) {
     const now = Date.now();
     console.log(`[安全-仅记录] IP: ${ip}, 原因: ${reason}, 时长: ${durationMs}ms`);
@@ -222,41 +211,11 @@ class SecurityModule {
 
 const security = new SecurityModule();
 
-// ============ Express 初始化 ============
 const app = express();
 const server = http.createServer(app);
 
-// ⚠️ 关键修复：游戏路由放在最前面，在 CSP 中间件之前
-// 这样游戏页面不会被全局 CSP 限制
+app.get('/', (req, res) => res.redirect('/panel.html'));
 
-// ============ 游戏首页（必须在 CSP 中间件之前） ============
-app.get('/', (req, res) => {
-  const gamePath = path.join(__dirname, '钢铁前线1944联机版.html');
-  if (fs.existsSync(gamePath)) {
-    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-    res.setHeader('Content-Type', 'text/html; charset=utf-8');
-    res.setHeader('Content-Security-Policy', "default-src * 'unsafe-inline' 'unsafe-eval'; script-src * 'unsafe-inline' 'unsafe-eval'; style-src * 'unsafe-inline'; connect-src * ws: wss:; img-src * data: blob:; media-src *; font-src *; frame-src *; object-src *");
-    res.removeHeader('X-Frame-Options');
-    const stream = fs.createReadStream(gamePath);
-    stream.pipe(res);
-    stream.on('error', () => {
-      res.status(404).end('游戏文件读取失败');
-    });
-  } else {
-    res.status(200).type('html').send('<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><title>钢铁前线1944</title></head><body style="background:#0a0c08;color:#eee;text-align:center;padding-top:40vh"><h1>游戏文件未部署</h1><p>请将钢铁前线1944联机版.html放到服务器根目录</p></body></html>');
-  }
-});
-
-// ============ 测试页面 ============
-app.get('/test', (req, res) => {
-  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-  res.setHeader('Content-Type', 'text/html; charset=utf-8');
-  res.setHeader('Content-Security-Policy', "default-src * 'unsafe-inline' 'unsafe-eval'; script-src * 'unsafe-inline' 'unsafe-eval'; style-src * 'unsafe-inline'; connect-src * ws: wss:;");
-  res.removeHeader('X-Frame-Options');
-  res.send('<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>测试</title><style>body{background:#0a0c08;color:#eee;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;flex-direction:column;gap:16px}.btn{padding:16px 40px;font-size:18px;border:2px solid #8a7c50;background:linear-gradient(180deg,#5a5236,#3a3422);color:#f0e6c0;border-radius:6px;cursor:pointer}.msg{color:#8f8;margin-top:12px;font-size:14px}</style></head><body><h1>测试页面</h1><button class="btn" onclick="document.getElementById(\'r1\').textContent=\'点击成功！\'">测试按钮 1</button><button class="btn" id="btn2">测试按钮 2</button><div class="msg" id="r1"></div><div class="msg" id="r2"></div><script>document.getElementById(\'btn2\').onclick=function(){document.getElementById(\'r2\').textContent=\'JS绑定也正常！\';};</script></body></html>');
-});
-
-// ============ 前端安全（仅对 API 和管理页面生效） ============
 app.use((req, res, next) => {
   const ip = getClientIP(req);
   if (security.isBlocked(ip)) return res.status(403).end();
@@ -286,13 +245,11 @@ app.use((req, res, next) => {
   next();
 });
 
-// 基础中间件
 app.use(compression());
 app.use(cors({ origin: true, credentials: true, methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'], allowedHeaders: ['Content-Type', 'Authorization', 'x-request-time', 'x-request-nonce', 'x-request-signature', 'x-session-id', 'x-device-id'] }));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// CSP 头（仅对 API 和管理页面）
 app.use((req, res, next) => {
   res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' ws: wss:; font-src 'self'; frame-src 'none'; object-src 'none'; base-uri 'self'; form-action 'self'");
   res.setHeader('X-Content-Type-Options', 'nosniff');
@@ -304,7 +261,6 @@ app.use((req, res, next) => {
   next();
 });
 
-// CSRF 保护
 app.use((req, res, next) => {
   if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(req.method)) {
     const origin = req.headers.origin || req.headers.referer;
@@ -322,7 +278,6 @@ app.use((req, res, next) => {
   next();
 });
 
-// 请求日志 + 安全检测
 app.use((req, res, next) => {
   const ip = getClientIP(req);
   const rpath = req.path.toLowerCase();
@@ -335,11 +290,9 @@ app.use((req, res, next) => {
   next();
 });
 
-// ============ 静态文件 ============
 app.use('/h', express.static(HOSTS_DIR, { index: 'index.html', dotfiles: 'deny' }));
 app.use(express.static(PUBLIC_DIR, { index: false }));
 
-// ============ 面板页面 ============
 app.get('/panel.html', (req, res) => {
   const panelPath = path.join(__dirname, 'panel.html');
   if (fs.existsSync(panelPath)) { res.sendFile(panelPath); }
@@ -348,7 +301,6 @@ app.get('/panel.html', (req, res) => {
 app.get('/host.html', (req, res) => res.redirect('/panel.html'));
 app.get('/admin.html', (req, res) => res.redirect('/panel.html'));
 
-// ============ 认证接口 ============
 app.post('/api/v2/auth/session/create', (req, res) => {
   try {
     const ip = getClientIP(req);
@@ -413,7 +365,6 @@ app.post('/api/v2/auth/session/refresh', (req, res) => {
   } catch (e) { console.error('[Token刷新]', e.message); res.status(401).json({ error: 'refreshToken 无效' }); }
 });
 
-// ============ 认证中间件 ============
 function authMiddleware(req, res, next) {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) return res.status(401).json({ error: '未授权' });
@@ -427,14 +378,12 @@ function hmacMiddleware(req, res, next) {
   return res.status(403).json({ error: '管理密码错误' });
 }
 
-// ============ 用户接口 ============
 app.get('/api/v2/user/profile/detail', authMiddleware, (req, res) => {
   const user = DB.users[req.user.username];
   if (!user) return res.status(404).json({ error: '用户不存在' });
   res.json({ success: true, user: { id: user.id, username: user.username, plan: user.plan, planName: user.planName, registered: user.registered, lastLogin: user.lastLogin } });
 });
 
-// ============ IP 管理 ============
 app.post('/api/v2/sys/management/ips/unban', hmacMiddleware, (req, res) => {
   const { ip } = req.body;
   if (ip && DB.blockedIPs[ip]) { delete DB.blockedIPs[ip]; saveBlocked(); return res.json({ success: true, msg: 'IP已解封' }); }
@@ -510,30 +459,10 @@ app.get('/api/v2/user/sessions', authMiddleware, (req, res) => {
   res.json({ success: true, sessions: [] });
 });
 
-app.get('/api/v2/sys/multiplayer/stats', hmacMiddleware, (req, res) => {
-  if (!verifyAdmin(req.query.admin_password || req.body?.admin_password)) return res.status(403).json({ error: '管理密码错误' });
-  res.json(mpServer.getStats());
-});
-
-// ============ 多人联机 WebSocket ============
-const wss = new ws.WebSocketServer({ server, path: '/gateway/realtime' });
-const mpServer = new MultiplayerServer(wss, (token) => {
-  if (!token) return { valid: false, userId: 'anon', username: '游客' };
-  try {
-    const decoded = jwt.verify(token, JWT_SECRET);
-    return { valid: true, userId: decoded.id || decoded.sub, username: decoded.username || '战士' };
-  } catch (e) { return { valid: false, userId: 'anon', username: '游客' }; }
-});
-wss.on('connection', (ws, req) => { mpServer.onConnection(ws, req); });
-mpServer.start();
-
-// ============ 错误处理 ============
 app.use((err, req, res, next) => { console.error('[错误]', err.message); res.status(500).json({ error: '服务器内部错误' }); });
 app.use((req, res) => { res.status(404).json({ error: '页面不存在' }); });
 
-// ============ 启动服务器 ============
 server.listen(PORT, () => {
-  console.log('[联机] 服务器已启动 tick=15Hz');
   console.log('========================================');
   console.log('手机多租户虚拟主机 v4.0.0 安全加固版');
   console.log('========================================');
@@ -542,13 +471,9 @@ server.listen(PORT, () => {
   console.log(`用户数量: ${Object.keys(DB.users).length}`);
   console.log(`主机数量: ${Object.keys(DB.hosts).length}`);
   console.log('========================================');
-  console.log(`游戏页面: http://127.0.0.1:${PORT}/`);
-  console.log(`测试页面: http://127.0.0.1:${PORT}/test`);
   console.log(`管理后台: http://127.0.0.1:${PORT}/panel.html`);
   console.log('========================================');
   console.log('[安全] 已添加白名单IP: ' + (DB.whitelist.length > 0 ? DB.whitelist.join(', ') : '无'));
-  console.log('[安全] IP封禁功能已禁用（仅记录不封禁）');
-  console.log('[CSP] 游戏页面已放开CSP，允许内联脚本和CDN资源');
   console.log('========================================');
 });
 
