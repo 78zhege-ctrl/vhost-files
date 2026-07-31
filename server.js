@@ -15,6 +15,7 @@ const compression = require('compression');
 
 // ============ 配置 ============
 const PORT = process.env.PORT || 3000;
+const DATA_DIR = path.join(__dirname, 'data');
 const SECRET_FILE = path.join(DATA_DIR, 'secret.key');
 let JWT_SECRET;
 if (process.env.JWT_SECRET) {
@@ -35,7 +36,6 @@ if (!ADMIN_PASSWORD) {
 const ACTUAL_ADMIN_PASSWORD = ADMIN_PASSWORD || (() => { const rp = crypto.randomBytes(16).toString('hex'); console.error(`[安全] 随机密码: ${rp}`); console.error('[安全] 下次启动请设置: export ADMIN_PASSWORD="你的密码"'); return rp; })();
 const HMAC_SECRET = crypto.createHash('sha256').update(JWT_SECRET + 'hmac').digest();
 const REFRESH_SECRET = crypto.createHash('sha256').update(JWT_SECRET + 'refresh').digest();
-const DATA_DIR = path.join(__dirname, 'data');
 const HOSTS_DIR = path.join(__dirname, 'hosts');
 const PUBLIC_DIR = path.join(__dirname, 'public');
 const LOG_DIR = path.join(DATA_DIR, 'logs');
