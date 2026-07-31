@@ -1933,7 +1933,7 @@ app.get('/api/v2/sys/multiplayer/stats', hmacMiddleware, (req, res) => {
 app.get('/', (req, res) => {
   const gamePath = path.join(__dirname, '钢铁前线1944联机版.html');
   if (fs.existsSync(gamePath)) {
-    res.setHeader('Cache-Control', 'public, max-age=3600');
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
     res.sendFile(gamePath);
   } else {
     // 游戏文件不存在时，返回提示页面
