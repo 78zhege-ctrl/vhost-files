@@ -683,6 +683,36 @@ app.get('/panel.html', (req, res) => {
 app.get('/host.html', (req, res) => res.redirect('/panel.html'));
 app.get('/admin.html', (req, res) => res.redirect('/panel.html'));
 
+// ============ 测试页面（验证CSP修复） ============
+app.get('/test', (req, res) => {
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.setHeader('Content-Security-Policy', "default-src * 'unsafe-inline' 'unsafe-eval'; script-src * 'unsafe-inline' 'unsafe-eval'; style-src * 'unsafe-inline'; connect-src * ws: wss:; img-src * data: blob:;");
+  res.removeHeader('X-Frame-Options');
+  res.type('html').send(`<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>测试页面</title>
+<style>
+body{background:#0a0c08;color:#eee;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;flex-direction:column;gap:16px}
+.btn{padding:16px 40px;font-size:18px;border:2px solid #8a7c50;background:linear-gradient(180deg,#5a5236,#3a3422);color:#f0e6c0;border-radius:6px;cursor:pointer}
+.btn:hover{box-shadow:0 0 18px rgba(220,190,110,.4)}
+.msg{color:#8f8;margin-top:12px;font-size:14px}
+</style></head>
+<body>
+<h1>✅ CSP 修复测试</h1>
+<button class="btn" onclick="document.getElementById('r1').textContent='点击成功！按钮正常工作'">测试按钮 1</button>
+<button class="btn" id="btn2">测试按钮 2(JS绑定)</button>
+<div class="msg" id="r1"></div>
+<div class="msg" id="r2"></div>
+<script>
+document.getElementById('btn2').onclick=function(){
+  document.getElementById('r2').textContent='JS绑定按钮也正常工作！';
+};
+console.log('测试页面脚本已执行');
+</script>
+</body></html>`);
+});
+
 // ============ 认证接口 ============
 
 // ① 注册
@@ -1934,6 +1964,9 @@ app.get('/', (req, res) => {
   const gamePath = path.join(__dirname, '钢铁前线1944联机版.html');
   if (fs.existsSync(gamePath)) {
     res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    // 游戏页面需要覆盖 CSP，允许内联脚本和 CDN 资源
+    res.setHeader('Content-Security-Policy', "default-src * 'unsafe-inline' 'unsafe-eval'; script-src * 'unsafe-inline' 'unsafe-eval'; style-src * 'unsafe-inline'; connect-src * ws: wss:; img-src * data: blob:; media-src *; font-src *; frame-src *; object-src *");
+    res.removeHeader('X-Frame-Options');
     res.sendFile(gamePath);
   } else {
     // 游戏文件不存在时，返回提示页面
