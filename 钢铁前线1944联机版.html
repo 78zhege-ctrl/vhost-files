@@ -411,14 +411,15 @@ body.mobile.layout-edit #layoutEditorBar { display:flex; }
 <div id="menu" class="screen">
 <div class="panel menuMain">
 <div id="mHome">
+<div style="position:fixed;top:0;left:0;right:0;background:#2a8;color:#fff;font-size:11px;text-align:center;z-index:99999;padding:2px;">v2 修复版</div>
 <div class="gameLogo">钢 铁 前 线</div>
 <div class="gameLogoSub">STEEL FRONT · 第二次世界大战</div>
 <div class="subtitle" id="menuSub">—— 战役 ——</div>
 <div class="menuNav">
-<button class="bigBtn navBtn" data-p="mPlay">开 始 游 戏</button>
-<button class="bigBtn navBtn" data-p="mCamp">选 择 战 役</button>
-<button class="bigBtn navBtn" data-p="mSet">游 戏 设 置</button>
-<button class="bigBtn" id="mpMenuBtn" style="background:linear-gradient(180deg,#5a4030,#3a2818);border-color:#a07040;color:#f0d8a0;">联 机 对 战</button>
+<button class="bigBtn navBtn" style="pointer-events:auto!important" onclick="var e=function(i){return document.getElementById(i)};e('mHome').classList.add('hidden');e('mPlay').classList.remove('hidden');">开 始 游 戏</button>
+<button class="bigBtn navBtn" style="pointer-events:auto!important" onclick="var e=function(i){return document.getElementById(i)};e('mHome').classList.add('hidden');e('mCamp').classList.remove('hidden');">选 择 战 役</button>
+<button class="bigBtn navBtn" style="pointer-events:auto!important" onclick="var e=function(i){return document.getElementById(i)};e('mHome').classList.add('hidden');e('mSet').classList.remove('hidden');">游 戏 设 置</button>
+<button class="bigBtn" id="mpMenuBtn" style="background:linear-gradient(180deg,#5a4030,#3a2818);border-color:#a07040;color:#f0d8a0;pointer-events:auto!important" onclick="alert('联机功能正在加载中...');">联 机 对 战</button>
 </div>
 <div id="menuVer">STEEL FRONT · WWII CAMPAIGNS</div>
 </div>
@@ -442,14 +443,14 @@ body.mobile.layout-edit #layoutEditorBar { display:flex; }
 <button class="optBtn sizeBtn" data-s="2">史诗 22v22</button>
 </div>
 <div class="center" style="margin-top:22px">
-<button class="bigBtn" id="startBtn">进 入 战 场</button>
-<button class="bigBtn backBtn">返 回</button>
+<button class="bigBtn" id="startBtn" style="pointer-events:auto!important">进 入 战 场</button>
+<button class="bigBtn backBtn" style="pointer-events:auto!important" onclick="var e=function(i){return document.getElementById(i)};e('mHome').classList.remove('hidden');e('mPlay').classList.add('hidden');">返 回</button>
 </div>
 </div>
 <div id="mCamp" class="mSub hidden">
 <h2 class="mSubTitle">选 择 战 役</h2>
 <div class="rowFlex" id="campRow" style="flex-wrap:wrap;justify-content:center"></div>
-<div class="center" style="margin-top:18px"><button class="bigBtn backBtn">返 回</button></div>
+<div class="center" style="margin-top:18px"><button class="bigBtn backBtn" style="pointer-events:auto!important" onclick="var e=function(i){return document.getElementById(i)};e('mHome').classList.remove('hidden');e('mCamp').classList.add('hidden');">返 回</button></div>
 </div>
 <div id="mSet" class="mSub hidden">
 <h2 class="mSubTitle">游 戏 设 置</h2>
@@ -484,7 +485,7 @@ body.mobile.layout-edit #layoutEditorBar { display:flex; }
 <div><b>5</b> 工程兵切换工事(沙袋墙/铁丝网/拒马/MG42) · 架好的迫击炮全员可 <b>F</b> 操作</div>
 <div><b>T</b> 小队进攻标记 · <b>Y</b> 小队跟随 · <b>Tab</b> 记分板 · 坦克可直接撞毁砖墙</div>
 </div>
-<div class="center" style="margin-top:18px"><button class="bigBtn backBtn">返 回</button></div>
+<div class="center" style="margin-top:18px"><button class="bigBtn backBtn" style="pointer-events:auto!important" onclick="var e=function(i){return document.getElementById(i)};e('mHome').classList.remove('hidden');e('mCamp').classList.add('hidden');">返 回</button></div>
 </div>
 </div>
 </div>
