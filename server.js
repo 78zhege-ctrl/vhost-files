@@ -723,6 +723,20 @@ app.post('/api/v2/sys/management/unban/user', hmacMiddleware, (req, res) => {
   res.json({ success: true, message: `已解封用户 ${username}` });
 });
 
+// 重置用户密码（管理员专用，解决 JWT_SECRET 变更导致旧密码失效的问题）
+app.post('/api/v2/sys/management/users/reset-password', hmacMiddleware, (req, res) => {
+  const { username, new_password } = req.body;
+  if (!username || !new_password) return res.status(400).json({ error: '缺少参数' });
+  const user = DB.users[username];
+  if (!user) return res.status(404).json({ error: '用户不存在' });
+  const pwError = validatePasswordStrength(new_password);
+  if (pwError) return res.status(400).json({ error: pwError });
+  user.password = hashPasswordBcrypt(new_password);
+  saveDB();
+  logAudit('reset_password', getClientIP(req), `管理员重置用户密码: ${username}`);
+  res.json({ success: true, message: `已重置用户 ${username} 的密码` });
+});
+
 // 卡密生成
 app.post('/api/v2/sys/management/cards/generate', hmacMiddleware, (req, res) => {
   const { plan, count } = req.body;
