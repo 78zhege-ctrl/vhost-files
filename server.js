@@ -214,7 +214,34 @@ const security = new SecurityModule();
 const app = express();
 const server = http.createServer(app);
 
-app.get('/', (req, res) => res.redirect('/panel.html'));
+// ============ 首页（必须在 CSP 中间件之前） ============
+app.get('/', (req, res) => {
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  res.setHeader('Content-Security-Policy', "default-src * 'unsafe-inline' 'unsafe-eval'; script-src * 'unsafe-inline' 'unsafe-eval'; style-src * 'unsafe-inline'; connect-src * ws: wss:; img-src * data: blob:; media-src *; font-src *; frame-src *; object-src *");
+  res.removeHeader('X-Frame-Options');
+  const users = Object.keys(DB.users).length;
+  const now = new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
+  res.send('<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>手机服务器 · 首页</title><style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:linear-gradient(135deg,#0a0a1a 0%,#1a1040 50%,#0d0d2b 100%);min-height:100vh;display:flex;align-items:center;justify-content:center;color:#e0e0f0;padding:20px}.container{text-align:center;max-width:420px;width:100%}.icon{font-size:64px;margin-bottom:8px;filter:drop-shadow(0 0 20px rgba(100,100,255,.3))}.title{font-size:24px;font-weight:700;margin-bottom:8px;letter-spacing:2px}.subtitle{font-size:14px;color:#8888aa;margin-bottom:32px}.btn{display:block;width:100%;padding:14px;margin:10px 0;font-size:16px;border-radius:10px;border:none;cursor:pointer;text-decoration:none;letter-spacing:1px;text-align:center}.btn-primary{background:linear-gradient(135deg,#6b4ee6,#8b5cf6);color:#fff;box-shadow:0 4px 20px rgba(107,78,230,.3)}.btn-secondary{background:transparent;color:#aaa;border:1px solid rgba(255,255,255,.1)}.btn-secondary:hover{color:#fff;border-color:rgba(255,255,255,.3)}.status-card{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.06);border-radius:12px;padding:16px;margin-top:24px;text-align:left}.status-row{display:flex;justify-content:space-between;padding:8px 0;font-size:13px;border-bottom:1px solid rgba(255,255,255,.04)}.status-row:last-child{border-bottom:none}.status-label{color:#8888aa}.status-value{color:#c0c0e0}.status-ok{color:#10b981}</style></head><body><div class="container"><div class="icon">🚀</div><div class="title">手机服务器运行正常</div><div class="subtitle">你的 Node.js 多租户虚拟主机已成功启动</div><a href="/panel.html" class="btn btn-primary">🏠 我的虚拟主机</a><a href="/panel.html" class="btn btn-secondary">⚙️ 管理员后台</a><div class="status-card"><div class="status-row"><span class="status-label">当前时间</span><span class="status-value">' + now + '</span></div><div class="status-row"><span class="status-label">Node.js 服务</span><span class="status-value status-ok">✅ 已启用</span></div><div class="status-row"><span class="status-label">注册用户</span><span class="status-value">' + users + ' 人</span></div><div class="status-row"><span class="status-label">在线状态</span><span class="status-value status-ok">🟢 正常</span></div></div></div></body></html>');
+});
+
+// ============ 面板页面（必须在 CSP 中间件之前） ============
+app.get('/panel.html', (req, res) => {
+  const panelPath = path.join(__dirname, 'panel.html');
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  res.setHeader('Content-Security-Policy', "default-src * 'unsafe-inline' 'unsafe-eval'; script-src * 'unsafe-inline' 'unsafe-eval'; style-src * 'unsafe-inline'; connect-src * ws: wss:; img-src * data: blob:; media-src *; font-src *; frame-src *; object-src *");
+  res.removeHeader('X-Frame-Options');
+  if (fs.existsSync(panelPath)) {
+    const stream = fs.createReadStream(panelPath);
+    stream.pipe(res);
+    stream.on('error', () => res.status(404).end('面板文件读取失败'));
+  } else {
+    res.status(404).end('面板文件不存在');
+  }
+});
+app.get('/host.html', (req, res) => res.redirect('/panel.html'));
+app.get('/admin.html', (req, res) => res.redirect('/panel.html'));
 
 app.use((req, res, next) => {
   const ip = getClientIP(req);
@@ -292,14 +319,6 @@ app.use((req, res, next) => {
 
 app.use('/h', express.static(HOSTS_DIR, { index: 'index.html', dotfiles: 'deny' }));
 app.use(express.static(PUBLIC_DIR, { index: false }));
-
-app.get('/panel.html', (req, res) => {
-  const panelPath = path.join(__dirname, 'panel.html');
-  if (fs.existsSync(panelPath)) { res.sendFile(panelPath); }
-  else { res.sendFile(path.join(PUBLIC_DIR, 'panel.html')); }
-});
-app.get('/host.html', (req, res) => res.redirect('/panel.html'));
-app.get('/admin.html', (req, res) => res.redirect('/panel.html'));
 
 app.post('/api/v2/auth/session/create', (req, res) => {
   try {
