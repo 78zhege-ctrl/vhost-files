@@ -1089,7 +1089,9 @@ function switchAdminTab(name) {
   var tabs = document.querySelectorAll('.admin-tab');
   var map = { overview: 0, users: 1, cards: 2, security: 3, system: 4 };
   tabs.forEach(function(t, i) { t.classList.toggle('active', i === (map[name] || 0)); });
-  if (name === 'system') loadSystemResources();
+  // 系统标签：开启实时轮询；其他标签：停止轮询
+  if (name === 'system') { startSysResPolling(); }
+  else { stopSysResPolling(); }
   if (name === 'security') loadWhitelist();
 }
 
@@ -1317,7 +1319,7 @@ async function doUpload() {
   if (selectedFile.size > 50 * 1024 * 1024) { showToast('超过50MB限制', 'error'); return; }
   var btn = $('uploadBtn'); btn.disabled = true; setProgress(10, '上传中...');
   try {
-    var form = new FormData(); form.append('file', selectedFile);
+    var form = new FormData(); form.append('files', selectedFile);
     var r = await fetch(API + '/api/v2/storage/files/upload/' + USER.host_uid, { method: 'POST', headers: { 'Authorization': 'Bearer ' + TOKEN }, body: form });
     setProgress(80, '处理中...');
     var d = await r.json();
@@ -1846,16 +1848,21 @@ async function queryBehaviorScore() {
   } catch (e) { $('behaviorResult').innerHTML = '<span style="color:var(--red)">查询失败: ' + e.message + '</span>'; }
 }
 
-// ====== SYSTEM RESOURCES ======
+// ====== SYSTEM RESOURCES（实时轮询） ======
+var _sysResTimer = null;
 async function loadSystemResources() {
-  if (!ADMIN_PWD) return;
+  if (!ADMIN_PWD) { stopSysResPolling(); return; }
   try {
     var r = await fetch(API + '/api/v2/sys/resources?admin_password=' + ADMIN_PWD);
     var d = await r.json();
     if (d.error) { return; }
-    var cpu = d.cpu?.loadAvg ? (d.cpu.loadAvg[0] * 100 / d.cpu.cores).toFixed(1) : 0;
-    var mem = d.memory?.usagePercent || 0;
-    var disk = d.disk?.usagePercent || '--';
+    // CPU：防止 cores 为 0 导致 Infinity
+    var cpu = 0;
+    if (d.cpu && d.cpu.loadAvg && d.cpu.cores && d.cpu.cores > 0) {
+      cpu = parseFloat((d.cpu.loadAvg[0] * 100 / d.cpu.cores).toFixed(1));
+    }
+    var mem = d.memory && d.memory.usagePercent != null ? d.memory.usagePercent : 0;
+    var disk = d.disk && d.disk.usagePercent != null ? d.disk.usagePercent : '--';
 
     // Overview cards
     if ($('cpuUsage')) { $('cpuUsage').textContent = cpu + '%'; }
@@ -1869,8 +1876,16 @@ async function loadSystemResources() {
     if ($('diskUsageDetail')) { $('diskUsageDetail').textContent = disk + '%'; }
     if ($('cpuBarDetail')) { $('cpuBarDetail').style.width = Math.min(100, cpu) + '%'; }
     if ($('memBarDetail')) { $('memBarDetail').style.width = mem + '%'; }
-    if ($('diskBarDetail')) { $('diskBarDetail').style.width = disk + '%'; }
+    if ($('diskBarDetail')) { $('diskBarDetail').style.width = (disk === '--' ? 0 : disk) + '%'; }
   } catch (e) { /* silent */ }
+}
+function startSysResPolling() {
+  stopSysResPolling();
+  loadSystemResources();
+  _sysResTimer = setInterval(loadSystemResources, 3000); // 每3秒刷新
+}
+function stopSysResPolling() {
+  if (_sysResTimer) { clearInterval(_sysResTimer); _sysResTimer = null; }
 }
 
 async function changeAdminPassword() {
