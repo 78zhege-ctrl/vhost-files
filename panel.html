@@ -540,6 +540,10 @@ select.input { appearance:none; -webkit-appearance:none; background-image:url("d
         <button class="btn btn-sm btn-outline" onclick="copyUrls()">复制</button>
       </div>
       <div class="log-box" id="urlList" style="max-height:120px;font-size:11px">加载中...</div>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <input type="text" class="input" id="manualUrl" placeholder="粘贴cpolar公网地址，如 https://xxx.cpolar.cn" style="font-size:12px">
+        <button class="btn btn-sm btn-primary" onclick="saveManualUrl()" style="width:auto;white-space:nowrap">💾 保存</button>
+      </div>
     </div>
 
     <div class="card">
@@ -1229,14 +1233,25 @@ async function loadUser() {
   } catch (e) { showToast('获取用户信息失败: ' + e.message, 'error'); }
 }
 
+function saveManualUrl() {
+  var url = $('manualUrl').value.trim();
+  if (!url) { showToast('请输入地址', 'error'); return; }
+  localStorage.setItem('host_manual_url', url);
+  showToast('已保存', 'success');
+  loadUrls();
+}
 async function loadUrls() {
   try {
     var r = await fetch(API + '/api/v2/server/info');
     var d = await r.json();
     var lines = [];
     var uidPath = USER && USER.host_uid ? '/h/' + USER.host_uid + '/' : '/h/ID/';
-    if (d.tunnels && d.tunnels.length) d.tunnels.forEach(function(u) { lines.push(u + uidPath); });
-    else lines.push('未检测到公网隧道');
+    if (d.tunnels && d.tunnels.length) { d.tunnels.forEach(function(u) { lines.push(u + uidPath); }); }
+    else {
+      var manual = localStorage.getItem('host_manual_url');
+      if (manual) { lines.push(manual + uidPath); $('manualUrl').value = manual; }
+      else lines.push('未检测到公网隧道，请手动输入');
+    }
     if (d.lan) lines.push(d.lan + uidPath + ' (局域网)');
     $('urlList').textContent = lines.join('\n');
   } catch (e) { $('urlList').textContent = '获取失败: ' + e.message; }
