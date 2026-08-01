@@ -539,7 +539,14 @@ select.input { appearance:none; -webkit-appearance:none; background-image:url("d
         <div class="card-title"><span class="icon" style="background:var(--blue-bg);color:var(--blue)">🔗</span> 主机地址</div>
         <button class="btn btn-sm btn-outline" onclick="copyUrls()">复制</button>
       </div>
-      <div class="log-box" id="urlList" style="max-height:120px;font-size:11px">⏳ 自动检测中...</div>
+      <div class="input-group" style="margin-bottom:8px">
+        <input type="text" class="input" id="manualUrl" placeholder="输入 cpolar 地址，如 https://xxx.cpolar.top" style="font-size:12px;font-family:monospace">
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-sm btn-primary" onclick="setManualUrl()" style="flex:1">保存地址</button>
+        <button class="btn btn-sm btn-outline" onclick="autoDetectUrl()" style="flex:1">自动检测</button>
+      </div>
+      <div class="log-box" id="urlList" style="max-height:100px;font-size:11px;margin-top:8px">输入地址后点击"保存地址"</div>
       <div style="font-size:10px;color:var(--text3);margin-top:4px" id="urlStatus"></div>
     </div>
 
@@ -1238,31 +1245,58 @@ async function loadUser() {
   } catch (e) { showToast('获取用户信息失败: ' + e.message, 'error'); }
 }
 
-async function loadUrls() {
+// ====== 主机地址（手动输入 + 自动检测备用） ======
+function setManualUrl() {
+  var url = $('manualUrl').value.trim();
+  if (!url) { showToast('请输入 cpolar 地址', 'error'); return; }
+  url = url.replace(/\/+$/, '');
+  localStorage.setItem('host_manual_url', url);
+  var uidPath = USER && USER.host_uid ? '/h/' + USER.host_uid + '/' : '/h/ID/';
+  var fullUrl = url + uidPath;
+  $('urlList').textContent = fullUrl;
+  var elSt = document.getElementById('urlStatus');
+  if (elSt) { elSt.textContent = '✅ 手动设置 · ' + new Date().toLocaleTimeString(); elSt.style.color = 'var(--green)'; }
+  showToast('主机地址已保存', 'success');
+}
+function autoDetectUrl() {
+  $('urlList').textContent = '⏳ 自动检测中...';
+  var elSt = document.getElementById('urlStatus');
+  if (elSt) { elSt.textContent = '正在检测 cpolar 隧道...'; elSt.style.color = 'var(--orange)'; }
+  loadUrls();
+}
+function loadUrls() {
   try {
-    var r = await fetch(API + '/api/v2/server/info');
-    var d = await r.json();
-    var lines = [];
-    var uidPath = USER && USER.host_uid ? '/h/' + USER.host_uid + '/' : '/h/ID/';
-    if (d.tunnels && d.tunnels.length) {
-      d.tunnels.forEach(function(u) { lines.push(u + uidPath); });
+    var manualUrl = localStorage.getItem('host_manual_url');
+    if (manualUrl) {
+      var uidPath = USER && USER.host_uid ? '/h/' + USER.host_uid + '/' : '/h/ID/';
+      $('urlList').textContent = manualUrl + uidPath;
+      $('manualUrl').value = manualUrl;
       var elSt = document.getElementById('urlStatus');
-      if (elSt) { elSt.textContent = '✅ 自动检测 · ' + new Date(d.lastUpdate).toLocaleTimeString(); elSt.style.color = 'var(--green)'; }
-    } else {
-      lines.push('⏳ 等待 cpolar 隧道...');
-      var elSt2 = document.getElementById('urlStatus');
-      if (elSt2) { elSt2.textContent = d.lastError || '正在检测中...'; elSt2.style.color = 'var(--orange)'; }
+      if (elSt) { elSt.textContent = '✅ 手动设置'; elSt.style.color = 'var(--green)'; }
+      return;
     }
-    if (d.lan) lines.push(d.lan + uidPath + ' (局域网)');
-    document.getElementById('urlList').textContent = lines.join('\n');
+    fetch(API + '/api/v2/server/info').then(function(r) { return r.json(); }).then(function(d) {
+      var lines = [];
+      var uidPath2 = USER && USER.host_uid ? '/h/' + USER.host_uid + '/' : '/h/ID/';
+      if (d.tunnels && d.tunnels.length) {
+        d.tunnels.forEach(function(u) { lines.push(u + uidPath2); });
+        var elSt2 = document.getElementById('urlStatus');
+        if (elSt2) { elSt2.textContent = '✅ 自动检测 · ' + new Date(d.lastUpdate).toLocaleTimeString(); elSt2.style.color = 'var(--green)'; }
+      } else {
+        lines.push('未检测到隧道，请手动输入地址');
+        var elSt3 = document.getElementById('urlStatus');
+        if (elSt3) { elSt3.textContent = d.lastError || '未检测到隧道'; elSt3.style.color = 'var(--orange)'; }
+      }
+      if (d.lan) lines.push(d.lan + uidPath2 + ' (局域网)');
+      $('urlList').textContent = lines.join('\n');
+    }).catch(function(e) {
+      $('urlList').textContent = '❌ 连接失败: ' + e.message;
+      var elSt4 = document.getElementById('urlStatus');
+      if (elSt4) { elSt4.textContent = '无法连接服务器'; elSt4.style.color = 'var(--red)'; }
+    });
   } catch (e) {
-    document.getElementById('urlList').textContent = '❌ 连接失败: ' + e.message;
-    var elSt3 = document.getElementById('urlStatus');
-    if (elSt3) { elSt3.textContent = '无法连接服务器'; elSt3.style.color = 'var(--red)'; }
+    $('urlList').textContent = '❌ 错误: ' + e.message;
   }
-  // 每 30 秒自动刷新
-  clearTimeout(window._urlTimer);
-  window._urlTimer = setTimeout(loadUrls, 30000);
 }
 function copyUrls() {
   var text = $('urlList').textContent;
@@ -1441,7 +1475,7 @@ async function redeemCard() {
   } catch (e) { showToast('兑换出错: ' + e.message, 'error'); }
   btn.disabled = false;
 }
-function refreshAll() { loadUser(); loadFiles(); loadUrls(); showToast('已刷新', 'success'); }
+function refreshAll() { loadUser(); loadFiles(); showToast('已刷新', 'success'); }
 
 // Drag & drop
 (function() {
@@ -1858,7 +1892,7 @@ async function changeAdminPassword() {
   initTheme();
   // v3.5.1: 预采集浏览器指纹（登录前缓存，登录后自动关联）
   collectFingerprint();
-  // 始终加载主机地址（自动检测cpolar隧道）
+  // 加载主机地址（优先使用手动保存的地址）
   loadUrls();
   if (TOKEN) {
     (async function() {

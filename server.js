@@ -627,29 +627,35 @@ function hmacMiddleware(req, res, next) {
 
 // ============ 用户接口 ============
 app.get('/api/v2/user/profile/detail', authMiddleware, function(req, res) {
-  const user = DB.users[req.user.username];
-  if (!user) return res.status(404).json({ error: '用户不存在' });
-  const host = DB.hosts[user.id];
-  res.json({
-    success: true,
-    user: {
-      id: user.id,
-      host_uid: user.id,
-      username: user.username,
-      plan: user.plan,
-      plan_name: user.planName || (user.plan === 'premium' ? '高级版' : user.plan === 'pro' ? '专业版' : '免费版'),
-      planName: user.planName || (user.plan === 'premium' ? '高级版' : user.plan === 'pro' ? '专业版' : '免费版'),
-      registered: user.registered,
-      lastLogin: user.lastLogin,
-      space_used_mb: user.spaceUsedMB || 0,
-      space_limit_mb: user.spaceLimitMB || 100,
-      known_ips: user.knownIPs || [],
-      banned: user.banned || false,
-      host_url: host ? '/h/' + user.id + '/' : null,
-      host_password: host ? host.password : null,
-      host_files: host ? (host.files ? host.files.length : 0) : 0
-    }
-  });
+  try {
+    if (!req.user || !req.user.username) return res.status(401).json({ error: '未授权' });
+    const user = DB.users[req.user.username];
+    if (!user) return res.status(404).json({ error: '用户不存在' });
+    const host = DB.hosts[user.id];
+    res.json({
+      success: true,
+      user: {
+        id: user.id,
+        host_uid: user.id,
+        username: user.username,
+        plan: user.plan,
+        plan_name: user.planName || (user.plan === 'premium' ? '高级版' : user.plan === 'pro' ? '专业版' : '免费版'),
+        planName: user.planName || (user.plan === 'premium' ? '高级版' : user.plan === 'pro' ? '专业版' : '免费版'),
+        registered: user.registered,
+        lastLogin: user.lastLogin,
+        space_used_mb: user.spaceUsedMB || 0,
+        space_limit_mb: user.spaceLimitMB || 100,
+        known_ips: user.knownIPs || [],
+        banned: user.banned || false,
+        host_url: host ? '/h/' + user.id + '/' : null,
+        host_password: host ? host.password : null,
+        host_files: host ? (host.files ? host.files.length : 0) : 0
+      }
+    });
+  } catch (e) {
+    console.error('[用户详情]', e.message, e.stack);
+    res.status(500).json({ error: '服务器内部错误' });
+  }
 });
 
 // ============ IP 管理 ============
@@ -781,7 +787,7 @@ function refreshTunnelCache() {
   // 方式1: cpolar 本地 Web API（最快最可靠）
   var apiReq;
   try {
-    apiReq = http.get('http://127.0.0.1:4042/api/tunnels', function(apiRes) {
+    apiReq = http.get('http://127.0.0.1:4040/api/tunnels', function(apiRes) {
       var data = '';
       apiRes.on('data', function(chunk) { data += chunk; });
       apiRes.on('end', function() {
@@ -983,6 +989,17 @@ app.post('/api/v2/storage/files/upload/:uid', authMiddleware, upload.array('file
   }
   saveDB();
   res.json({ success: true, files: results });
+});
+
+// Multer 错误处理（防止 "Unexpected field" 崩溃）
+app.use(function(err, req, res, next) {
+  if (err && err.code === 'LIMIT_UNEXPECTED_FILE') {
+    return res.status(400).json({ error: '上传字段错误' });
+  }
+  if (err && err.name === 'MulterError') {
+    return res.status(400).json({ error: '上传错误: ' + err.message });
+  }
+  next(err);
 });
 
 // 删除文件
@@ -1274,7 +1291,7 @@ app.get('/api/v2/sys/management/ips/reputation', hmacMiddleware, function(req, r
 
 // ============ 错误处理 ============
 app.use(function(err, req, res, next) {
-  console.error('[错误]', err.message);
+  console.error('[错误]', err.message, err.stack || '');
   res.status(500).json({ error: '服务器内部错误' });
 });
 
