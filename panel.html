@@ -1836,6 +1836,8 @@ async function loadSystemResources() {
   initTheme();
   // v3.5.1: 预采集浏览器指纹（登录前缓存，登录后自动关联）
   collectFingerprint();
+  // 始终加载主机地址（自动检测cpolar隧道）
+  loadUrls();
   if (TOKEN) {
     (async function() {
       try { await loadUser(); if (USER) { enterApp(); return; } } catch (e) {}

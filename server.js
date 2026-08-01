@@ -78,7 +78,16 @@ loadDB(); loadAudit(); loadBlocked();
 // ============ 工具函数 ============
 function generateUID() { return crypto.randomBytes(10).toString('hex'); }
 function generateSessionId() { return 'sess_' + crypto.randomUUID(); }
-function getClientIP(req) { return req.headers['cf-connecting-ip'] || (req.headers['x-forwarded-for'] || '').split(',')[0] ? (req.headers['x-forwarded-for'] || '').split(',')[0].trim() : null || req.headers['x-real-ip'] || (req.socket.remoteAddress || '').replace('::ffff:', '') || '127.0.0.1'; }
+function getClientIP(req) {
+  var ip = req.headers['cf-connecting-ip'];
+  if (ip) return ip;
+  var xff = req.headers['x-forwarded-for'];
+  if (xff) { var parts = xff.split(','); if (parts[0]) return parts[0].trim(); }
+  ip = req.headers['x-real-ip'];
+  if (ip) return ip;
+  if (req.socket && req.socket.remoteAddress) return req.socket.remoteAddress.replace('::ffff:', '');
+  return '127.0.0.1';
+}
 function hashPassword(password) { return crypto.createHash('sha256').update(password + JWT_SECRET).digest('hex'); }
 function sanitize(str) { return String(str).replace(/[<>]/g, '').substring(0, 200); }
 function logAudit(action, ip, detail) { DB.auditLog.push({ time: new Date().toISOString(), action: action, ip: ip, detail: detail }); saveAudit(); }
@@ -130,8 +139,11 @@ function generateHMAC(method, urlPath, timestamp, nonce, bodyHash) {
   return crypto.createHmac('sha256', HMAC_SECRET).update(signStr).digest('hex');
 }
 function verifyHMAC(method, urlPath, timestamp, nonce, bodyHash, signature) {
-  const expected = generateHMAC(method, urlPath, timestamp, nonce, bodyHash);
-  return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(signature));
+  var expected = generateHMAC(method, urlPath, timestamp, nonce, bodyHash);
+  var expectedBuf = Buffer.from(expected);
+  var sigBuf = Buffer.from(signature);
+  if (expectedBuf.length !== sigBuf.length) return false;
+  return crypto.timingSafeEqual(expectedBuf, sigBuf);
 }
 
 // 密码强度验证
@@ -265,7 +277,7 @@ app.get('/admin.html', function(req, res) { res.redirect('/panel.html'); });
 
 // ============ 前端安全 ============
 app.use(function(req, res, next) {
-  const ip = req.headers['cf-connecting-ip'] || (req.headers['x-forwarded-for'] || '').split(',')[0] ? (req.headers['x-forwarded-for'] || '').split(',')[0].trim() : null || req.headers['x-real-ip'] || (req.socket.remoteAddress || '').replace('::ffff:', '') || '127.0.0.1';
+  const ip = getClientIP(req);
 
   if (security.isBlocked(ip)) {
     return res.status(403).end();
@@ -666,7 +678,7 @@ app.get('/api/v2/sys/management/accounts/lockouts', hmacMiddleware, function(req
 });
 
 // 资源监控
-app.get('/api/v2/sys/resources', hmacMiddleware, function(req, res) {
+app.get('/api/v2/sys/resources', authMiddleware, function(req, res) {
   const mem = process.memoryUsage();
   res.json({ success: true, memory: { heapUsed: Math.round(mem.heapUsed / 1024 / 1024) + 'MB', heapTotal: Math.round(mem.heapTotal / 1024 / 1024) + 'MB', rss: Math.round(mem.rss / 1024 / 1024) + 'MB' }, uptime: Math.round(process.uptime()) + 's' });
 });
@@ -695,7 +707,7 @@ function refreshTunnelCache() {
   // 方式1: cpolar 本地 Web API（最快最可靠）
   var apiReq;
   try {
-    apiReq = http.get('http://127.0.0.1:4040/api/tunnels', function(apiRes) {
+    apiReq = http.get('http://127.0.0.1:4042/api/tunnels', function(apiRes) {
       var data = '';
       apiRes.on('data', function(chunk) { data += chunk; });
       apiRes.on('end', function() {
