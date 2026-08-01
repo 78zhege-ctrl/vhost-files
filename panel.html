@@ -1,1 +1,486 @@
-/workspace/初叶/初叶/panel.html
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>手机虚拟主机 · 管理面板</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:linear-gradient(135deg,#0a0a1a 0%,#1a1040 50%,#0d0d2b 100%);min-height:100vh;color:#e0e0f0;padding:12px}
+:root{--bg:#0d0d2b;--card:rgba(255,255,255,.04);--border:rgba(255,255,255,.06);--accent:#8b5cf6;--green:#10b981;--red:#ef4444;--yellow:#f59e0b;--blue:#3b82f6}
+.card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:10px}
+.card-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.card-title{font-size:14px;font-weight:600;color:#c0c0e0;display:flex;align-items:center;gap:6px}
+.icon-badge{width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px}
+.btn{padding:10px 18px;border-radius:10px;border:none;font-size:14px;font-weight:600;cursor:pointer;letter-spacing:.5px;transition:all .2s}
+.btn-primary{background:linear-gradient(135deg,#6b4ee6,#8b5cf6);color:#fff;box-shadow:0 4px 15px rgba(107,78,230,.3)}
+.btn-primary:active{transform:scale(.97)}
+.btn-sm{padding:6px 12px;font-size:11px;border-radius:8px}
+.btn-outline{background:transparent;color:#aaa;border:1px solid rgba(255,255,255,.15)}.btn-outline:active{color:#fff;border-color:rgba(255,255,255,.3)}
+.btn-danger{background:rgba(239,68,68,.15);color:var(--red);border:1px solid rgba(239,68,68,.2)}
+.btn-green{background:rgba(16,185,129,.15);color:var(--green);border:1px solid rgba(16,185,129,.2)}
+input,textarea{width:100%;padding:10px 12px;border-radius:8px;border:1px solid var(--border);background:rgba(255,255,255,.03);color:#e0e0f0;font-size:14px;outline:none;transition:border .2s}
+input:focus,textarea:focus{border-color:var(--accent)}
+label{font-size:12px;color:#8888aa;display:block;margin-bottom:4px;margin-top:10px}
+.url-box{background:rgba(0,0,0,.3);border:1px solid var(--border);border-radius:8px;padding:10px;font-size:11px;font-family:monospace;word-break:break-all;line-height:1.6;max-height:140px;overflow-y:auto;color:#8bcf5f}
+.url-status{font-size:10px;margin-top:4px}
+.status-ok{color:var(--green)}.status-warn{color:var(--yellow)}.status-err{color:var(--red)}
+.tabs{display:flex;gap:4px;margin-bottom:12px;flex-wrap:wrap}
+.tab{padding:8px 14px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;background:transparent;color:#888;border:1px solid transparent;transition:all .2s}
+.tab.active{background:rgba(139,92,246,.15);color:var(--accent);border-color:rgba(139,92,246,.3)}
+.tab-content{display:none}.tab-content.active{display:block}
+.log-box{background:rgba(0,0,0,.3);border-radius:8px;padding:10px;font-size:11px;max-height:200px;overflow-y:auto;font-family:monospace;line-height:1.5;color:#aaa}
+.badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:600}
+.badge-green{background:rgba(16,185,129,.15);color:var(--green)}
+.badge-purple{background:rgba(139,92,246,.15);color:var(--accent)}
+.badge-red{background:rgba(239,68,68,.15);color:var(--red)}
+.row{display:flex;justify-content:space-between;align-items:center;padding:6px 0;font-size:12px;border-bottom:1px solid rgba(255,255,255,.03)}
+.row:last-child{border-bottom:none}.row-label{color:#8888aa}.row-value{color:#c0c0e0}
+.file-item{display:flex;justify-content:space-between;align-items:center;padding:8px;border-radius:6px;margin:2px 0;font-size:12px;background:rgba(255,255,255,.02)}
+.file-item:active{background:rgba(255,255,255,.05)}
+.file-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-right:8px}
+.file-size{color:#888;font-size:10px;margin-right:8px;white-space:nowrap}
+.file-actions{display:flex;gap:4px}
+.toast{position:fixed;top:16px;left:50%;transform:translateX(-50%);background:var(--accent);color:#fff;padding:10px 20px;border-radius:20px;font-size:13px;z-index:999;opacity:0;transition:opacity .3s;pointer-events:none}
+.toast.show{opacity:1}
+.toast.err{background:var(--red)}
+.hidden{display:none!important}
+.spin{animation:spin 1s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}
+.empty-state{text-align:center;padding:30px 20px;color:#555}
+.empty-state .icon{font-size:48px;margin-bottom:10px}
+</style>
+</head>
+<body>
+
+<div class="toast" id="toast"></div>
+
+<!-- 未登录视图 -->
+<div id="view-auth">
+  <div style="text-align:center;padding:30px 0 10px">
+    <div style="font-size:48px;margin-bottom:8px">🚀</div>
+    <div style="font-size:20px;font-weight:700;letter-spacing:1px">手机虚拟主机</div>
+    <div style="font-size:12px;color:#888;margin-top:4px">v4.0 · 多租户面板</div>
+  </div>
+
+  <!-- 主机地址卡片（自动检测，无需登录） -->
+  <div class="card" id="urlCard">
+    <div class="card-header">
+      <div class="card-title"><span class="icon-badge" style="background:rgba(59,130,246,.15);color:var(--blue)">🔗</span> 主机地址</div>
+      <button class="btn btn-sm btn-outline" onclick="copyUrls()">📋 复制</button>
+    </div>
+    <div class="url-box" id="urlList">⏳ 自动检测中...</div>
+    <div class="url-status" id="urlStatus"></div>
+  </div>
+
+  <!-- 登录/注册 -->
+  <div class="card">
+    <div class="tabs">
+      <button class="tab active" onclick="switchAuth('login')" id="tab-login">登录</button>
+      <button class="tab" onclick="switchAuth('register')" id="tab-register">注册</button>
+    </div>
+    <div class="tab-content active" id="form-login">
+      <label>用户名</label><input type="text" id="loginUser" placeholder="输入用户名" autocomplete="username">
+      <label>密码</label><input type="password" id="loginPass" placeholder="输入密码" autocomplete="current-password">
+      <button class="btn btn-primary" style="width:100%;margin-top:14px" onclick="doLogin()">登 录</button>
+    </div>
+    <div class="tab-content" id="form-register">
+      <label>用户名（2-30个字符）</label><input type="text" id="regUser" placeholder="输入用户名" autocomplete="username">
+      <label>密码（8位以上，含大小写字母+数字）</label><input type="password" id="regPass" placeholder="输入密码" autocomplete="new-password">
+      <button class="btn btn-primary" style="width:100%;margin-top:14px" onclick="doRegister()">注 册</button>
+    </div>
+  </div>
+</div>
+
+<!-- 已登录视图 -->
+<div id="view-panel" class="hidden">
+  <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0 14px">
+    <div>
+      <div style="font-size:18px;font-weight:700" id="panelTitle">📱 管理面板</div>
+      <div style="font-size:11px;color:#888" id="panelUser"></div>
+    </div>
+    <button class="btn btn-sm btn-outline" onclick="doLogout()">退出</button>
+  </div>
+
+  <!-- 主机地址 -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title"><span class="icon-badge" style="background:rgba(59,130,246,.15);color:var(--blue)">🔗</span> 主机地址</div>
+      <button class="btn btn-sm btn-outline" onclick="copyUrls()">📋 复制</button>
+    </div>
+    <div class="url-box" id="urlList2">⏳ 自动检测中...</div>
+    <div class="url-status" id="urlStatus2"></div>
+  </div>
+
+  <!-- 标签页 -->
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('dashboard')" id="tab-dashboard">📊 概览</button>
+    <button class="tab" onclick="switchTab('files')" id="tab-files">📁 文件</button>
+    <button class="tab" onclick="switchTab('host')" id="tab-host">🏠 主机</button>
+  </div>
+
+  <!-- 概览 -->
+  <div class="tab-content active" id="tab-dashboard-content">
+    <div class="card">
+      <div class="card-title" style="margin-bottom:8px">用户信息</div>
+      <div class="row"><span class="row-label">用户名</span><span class="row-value" id="info-user"></span></div>
+      <div class="row"><span class="row-label">套餐</span><span class="row-value" id="info-plan"></span></div>
+      <div class="row"><span class="row-label">空间</span><span class="row-value" id="info-space"></span></div>
+      <div class="row"><span class="row-label">注册时间</span><span class="row-value" id="info-reg"></span></div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="margin-bottom:8px">服务器状态</div>
+      <div class="row"><span class="row-label">运行时间</span><span class="row-value" id="info-uptime"></span></div>
+      <div class="row"><span class="row-label">内存</span><span class="row-value" id="info-mem"></span></div>
+      <div class="row"><span class="row-label">注册用户</span><span class="row-value" id="info-users"></span></div>
+    </div>
+  </div>
+
+  <!-- 文件管理 -->
+  <div class="tab-content" id="tab-files-content">
+    <div class="card">
+      <div style="display:flex;gap:6px;margin-bottom:8px">
+        <input type="text" id="fileSearch" placeholder="搜索文件..." style="flex:1" oninput="loadFiles()">
+        <button class="btn btn-sm btn-outline" onclick="uploadFile()">⬆ 上传</button>
+      </div>
+      <div id="fileList" style="max-height:300px;overflow-y:auto">
+        <div class="empty-state"><div class="icon">📂</div><div>暂无文件</div></div>
+      </div>
+      <input type="file" id="fileInput" multiple style="display:none" onchange="doUpload()">
+    </div>
+  </div>
+
+  <!-- 主机信息 -->
+  <div class="tab-content" id="tab-host-content">
+    <div class="card">
+      <div class="card-title" style="margin-bottom:8px">主机信息</div>
+      <div class="row"><span class="row-label">主机 ID</span><span class="row-value" id="host-uid"></span></div>
+      <div class="row"><span class="row-label">主机密码</span><span class="row-value" id="host-pwd"></span></div>
+      <div class="row"><span class="row-label">访问路径</span><span class="row-value" id="host-path"></span></div>
+    </div>
+    <div class="card">
+      <button class="btn btn-danger" style="width:100%" onclick="cleanupSpace()">🗑 清理空间</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============ 全局状态 ============
+var API = '';
+var TOKEN = '';
+var USER = null;
+var HOST = null;
+var _urlTimer = null;
+
+// ============ 初始化 ============
+function init() {
+  var saved = localStorage.getItem('vhost_token');
+  if (saved) {
+    try { var d = JSON.parse(saved); TOKEN = d.token; USER = d.user; HOST = d.host; } catch(e) {}
+  }
+  if (TOKEN && USER) {
+    showPanel();
+    loadProfile();
+    loadResources();
+    loadFiles();
+  }
+  loadUrls();
+  setInterval(loadUrls, 30000);
+}
+
+// ============ 自动检测 URL ============
+function loadUrls() {
+  fetch(API + '/api/v2/server/info')
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      var lines = [];
+      var uidPath = USER && USER.host_uid ? '/h/' + USER.host_uid + '/' : '/h/ID/';
+      if (d.tunnels && d.tunnels.length) {
+        d.tunnels.forEach(function(u) { lines.push(u + uidPath); });
+        updateUrlStatus('✅ 自动检测 · ' + new Date(d.lastUpdate).toLocaleTimeString(), 'status-ok');
+      } else {
+        lines.push('⏳ 等待 cpolar 隧道...');
+        updateUrlStatus(d.lastError || '正在检测中...', 'status-warn');
+      }
+      if (d.lan) lines.push(d.lan + uidPath + ' (局域网)');
+      document.getElementById('urlList').textContent = lines.join('\n');
+      var el2 = document.getElementById('urlList2');
+      if (el2) el2.textContent = lines.join('\n');
+    })
+    .catch(function(e) {
+      document.getElementById('urlList').textContent = '❌ 连接失败: ' + e.message;
+      var el2 = document.getElementById('urlList2');
+      if (el2) el2.textContent = '❌ 连接失败: ' + e.message;
+      updateUrlStatus('无法连接服务器', 'status-err');
+    });
+}
+
+function updateUrlStatus(msg, cls) {
+  var el = document.getElementById('urlStatus');
+  var el2 = document.getElementById('urlStatus2');
+  if (el) { el.textContent = msg; el.className = 'url-status ' + (cls || ''); }
+  if (el2) { el2.textContent = msg; el2.className = 'url-status ' + (cls || ''); }
+}
+
+function copyUrls() {
+  var text = document.getElementById('urlList').textContent;
+  if (!text || text.indexOf('检测') !== -1) { toast('暂无地址可复制', 'err'); return; }
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(text).then(function() { toast('已复制到剪贴板'); });
+  } else {
+    var ta = document.createElement('textarea');
+    ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    document.execCommand('copy'); document.body.removeChild(ta);
+    toast('已复制到剪贴板');
+  }
+}
+
+// ============ 认证切换 ============
+function switchAuth(type) {
+  document.getElementById('tab-login').className = 'tab' + (type === 'login' ? ' active' : '');
+  document.getElementById('tab-register').className = 'tab' + (type === 'register' ? ' active' : '');
+  document.getElementById('form-login').className = 'tab-content' + (type === 'login' ? ' active' : '');
+  document.getElementById('form-register').className = 'tab-content' + (type === 'register' ? ' active' : '');
+}
+
+// ============ 登录 ============
+function doLogin() {
+  var u = document.getElementById('loginUser').value.trim();
+  var p = document.getElementById('loginPass').value.trim();
+  if (!u || !p) { toast('请输入用户名和密码', 'err'); return; }
+  fetch(API + '/api/v2/auth/session/authenticate', {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({username:u, password:p})
+  }).then(function(r) { return r.json(); })
+  .then(function(d) {
+    if (d.error) { toast(d.error, 'err'); return; }
+    TOKEN = d.token; USER = d.user;
+    localStorage.setItem('vhost_token', JSON.stringify({token:TOKEN, user:USER, host:HOST}));
+    showPanel();
+    loadProfile();
+    loadResources();
+    loadFiles();
+    toast('登录成功');
+  }).catch(function(e) { toast('网络错误', 'err'); });
+}
+
+// ============ 注册 ============
+function doRegister() {
+  var u = document.getElementById('regUser').value.trim();
+  var p = document.getElementById('regPass').value.trim();
+  if (!u || !p) { toast('请输入用户名和密码', 'err'); return; }
+  if (u.length < 2 || u.length > 30) { toast('用户名2-30个字符', 'err'); return; }
+  fetch(API + '/api/v2/auth/session/create', {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({username:u, password:p})
+  }).then(function(r) { return r.json(); })
+  .then(function(d) {
+    if (d.error) { toast(d.error, 'err'); return; }
+    TOKEN = d.token; USER = d.user || { id: u, username: u, plan: 'free', planName: '免费版' };
+    HOST = d.host;
+    localStorage.setItem('vhost_token', JSON.stringify({token:TOKEN, user:USER, host:HOST}));
+    showPanel();
+    loadProfile();
+    loadResources();
+    loadFiles();
+    loadUrls();
+    toast('注册成功！');
+  }).catch(function(e) { toast('网络错误', 'err'); });
+}
+
+// ============ 退出 ============
+function doLogout() {
+  TOKEN = ''; USER = null; HOST = null;
+  localStorage.removeItem('vhost_token');
+  document.getElementById('view-auth').classList.remove('hidden');
+  document.getElementById('view-panel').classList.add('hidden');
+}
+
+// ============ 视图切换 ============
+function showPanel() {
+  document.getElementById('view-auth').classList.add('hidden');
+  document.getElementById('view-panel').classList.remove('hidden');
+  document.getElementById('panelUser').textContent = USER.username + ' · ' + (USER.planName || '免费版');
+  loadUrls();
+}
+
+// ============ 标签页 ============
+function switchTab(name) {
+  ['dashboard','files','host'].forEach(function(t) {
+    document.getElementById('tab-' + t).className = 'tab' + (t === name ? ' active' : '');
+    document.getElementById('tab-' + t + '-content').className = 'tab-content' + (t === name ? ' active' : '');
+  });
+  if (name === 'files') loadFiles();
+  if (name === 'host') loadHostInfo();
+}
+
+// ============ 加载用户信息 ============
+function loadProfile() {
+  fetch(API + '/api/v2/user/profile/detail', {
+    headers: {'Authorization':'Bearer ' + TOKEN}
+  }).then(function(r) { return r.json(); })
+  .then(function(d) {
+    if (d.error) return;
+    document.getElementById('info-user').textContent = d.username || USER.username;
+    document.getElementById('info-plan').innerHTML = '<span class="badge badge-purple">' + (d.planName || '免费版') + '</span>';
+    var used = d.spaceUsedMB || 0;
+    var limit = d.spaceLimitMB || 100;
+    document.getElementById('info-space').textContent = used + 'MB / ' + limit + 'MB';
+    document.getElementById('info-reg').textContent = d.registered ? new Date(d.registered).toLocaleDateString() : '-';
+    if (d.host_uid) {
+      USER.host_uid = d.host_uid;
+      document.getElementById('host-uid').textContent = d.host_uid;
+      document.getElementById('host-path').textContent = '/h/' + d.host_uid + '/';
+    }
+    loadUrls();
+  }).catch(function(){});
+}
+
+// ============ 加载资源 ============
+function loadResources() {
+  fetch(API + '/api/v2/sys/resources', {
+    headers: {'Authorization':'Bearer ' + TOKEN}
+  }).then(function(r) { return r.json(); })
+  .then(function(d) {
+    if (d.error) return;
+    document.getElementById('info-uptime').textContent = d.uptime || '-';
+    if (d.memory) {
+      document.getElementById('info-mem').textContent = '堆 ' + d.memory.heapUsed + ' / RSS ' + d.memory.rss;
+    }
+  }).catch(function(){});
+}
+
+// ============ 文件管理 ============
+function loadFiles() {
+  if (!USER || !USER.host_uid) {
+    // 从 profile 获取
+    fetch(API + '/api/v2/user/profile/detail', {
+      headers: {'Authorization':'Bearer ' + TOKEN}
+    }).then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (d.host_uid) { USER.host_uid = d.host_uid; doLoadFiles(d.host_uid); }
+    }).catch(function(){});
+    return;
+  }
+  doLoadFiles(USER.host_uid);
+}
+
+function doLoadFiles(uid) {
+  var q = document.getElementById('fileSearch') ? document.getElementById('fileSearch').value.trim() : '';
+  var url = API + '/api/v2/storage/files/list/' + uid;
+  if (q) url = API + '/api/v2/storage/files/search/' + uid + '?q=' + encodeURIComponent(q);
+  fetch(url, { headers: {'Authorization':'Bearer ' + TOKEN} })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      var el = document.getElementById('fileList');
+      if (!el) return;
+      var html = '';
+      var all = (d.folders || []).concat(d.files || []);
+      if (all.length === 0) {
+        html = '<div class="empty-state"><div class="icon">📂</div><div>暂无文件</div></div>';
+      } else {
+        all.forEach(function(f) {
+          var icon = f.type === 'folder' ? '📁' : '📄';
+          var size = f.size ? formatSize(f.size) : '';
+          html += '<div class="file-item">';
+          html += '<span style="margin-right:6px">' + icon + '</span>';
+          html += '<span class="file-name">' + esc(f.name) + '</span>';
+          html += '<span class="file-size">' + size + '</span>';
+          html += '<span class="file-actions">';
+          if (f.type !== 'folder') {
+            html += '<button class="btn btn-sm btn-outline" onclick="previewFile(\'' + esc(f.name) + '\')">👁</button>';
+          }
+          html += '<button class="btn btn-sm btn-outline" style="color:var(--red)" onclick="deleteFile(\'' + esc(f.name) + '\')">✕</button>';
+          html += '</span></div>';
+        });
+      }
+      el.innerHTML = html;
+    }).catch(function(){});
+}
+
+function uploadFile() { document.getElementById('fileInput').click(); }
+function doUpload() {
+  var files = document.getElementById('fileInput').files;
+  if (!files.length) return;
+  var fd = new FormData();
+  for (var i = 0; i < files.length; i++) fd.append('files', files[i]);
+  fetch(API + '/api/v2/storage/files/upload/' + USER.host_uid, {
+    method: 'POST', headers: {'Authorization':'Bearer ' + TOKEN}, body: fd
+  }).then(function(r) { return r.json(); })
+  .then(function(d) {
+    if (d.error) { toast(d.error, 'err'); return; }
+    toast('上传成功 ' + d.files.length + ' 个文件');
+    loadFiles();
+    loadProfile();
+  }).catch(function(){});
+  document.getElementById('fileInput').value = '';
+}
+
+function previewFile(name) {
+  window.open(API + '/api/v2/storage/files/preview/' + USER.host_uid + '/' + encodeURIComponent(name) + '?token=' + TOKEN, '_blank');
+}
+
+function deleteFile(name) {
+  if (!confirm('确定删除 ' + name + ' ？')) return;
+  fetch(API + '/api/v2/storage/files/remove/' + USER.host_uid + '/' + encodeURIComponent(name), {
+    method: 'POST', headers: {'Authorization':'Bearer ' + TOKEN}
+  }).then(function(r) { return r.json(); })
+  .then(function(d) {
+    if (d.error) { toast(d.error, 'err'); return; }
+    toast('已删除');
+    loadFiles();
+    loadProfile();
+  }).catch(function(){});
+}
+
+// ============ 主机信息 ============
+function loadHostInfo() {
+  if (!USER || !USER.host_uid) {
+    fetch(API + '/api/v2/user/profile/detail', {
+      headers: {'Authorization':'Bearer ' + TOKEN}
+    }).then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (d.host_uid) {
+        USER.host_uid = d.host_uid;
+        document.getElementById('host-uid').textContent = d.host_uid;
+        document.getElementById('host-path').textContent = '/h/' + d.host_uid + '/';
+      }
+      loadUrls();
+    }).catch(function(){});
+    return;
+  }
+  document.getElementById('host-uid').textContent = USER.host_uid;
+  document.getElementById('host-path').textContent = '/h/' + USER.host_uid + '/';
+  document.getElementById('host-pwd').textContent = HOST ? HOST.password : '***';
+}
+
+function cleanupSpace() {
+  if (!confirm('确定清理所有文件？此操作不可恢复！')) return;
+  fetch(API + '/api/v2/storage/files/cleanup/' + USER.host_uid, {
+    method: 'POST', headers: {'Authorization':'Bearer ' + TOKEN}
+  }).then(function(r) { return r.json(); })
+  .then(function(d) {
+    toast(d.message || '空间已清理');
+    loadFiles();
+    loadProfile();
+  }).catch(function(){});
+}
+
+// ============ 工具函数 ============
+function toast(msg, type) {
+  var el = document.getElementById('toast');
+  el.textContent = msg; el.className = 'toast show' + (type === 'err' ? ' err' : '');
+  clearTimeout(el._t); el._t = setTimeout(function() { el.className = 'toast'; }, 2000);
+}
+function formatSize(bytes) {
+  if (bytes < 1024) return bytes + 'B';
+  if (bytes < 1048576) return (bytes / 1024).toFixed(1) + 'KB';
+  return (bytes / 1048576).toFixed(2) + 'MB';
+}
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+
+// ============ 启动 ============
+init();
+</script>
+</body>
+</html>
