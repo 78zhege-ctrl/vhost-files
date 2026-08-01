@@ -802,6 +802,14 @@ select.input { appearance:none; -webkit-appearance:none; background-image:url("d
             </div>
           </div>
         </div>
+        <div class="card" style="margin-top:12px">
+          <div class="card-header"><div class="card-title">🔑 修改管理密码</div></div>
+          <div class="input-group">
+            <label>新密码</label>
+            <input type="password" class="input" id="newAdminPwd" placeholder="输入新管理密码（至少4位）">
+          </div>
+          <button class="btn btn-primary" onclick="changeAdminPassword()" style="margin-top:8px">更新密码</button>
+        </div>
       </div>
     </div>
   </div>
@@ -1827,8 +1835,22 @@ async function loadSystemResources() {
     if ($('diskUsageDetail')) { $('diskUsageDetail').textContent = disk + '%'; }
     if ($('cpuBarDetail')) { $('cpuBarDetail').style.width = Math.min(100, cpu) + '%'; }
     if ($('memBarDetail')) { $('memBarDetail').style.width = mem + '%'; }
-    if ($('diskBarDetail')) { $('diskBarDetail').style.width = '0%'; }
+    if ($('diskBarDetail')) { $('diskBarDetail').style.width = disk + '%'; }
   } catch (e) { /* silent */ }
+}
+
+async function changeAdminPassword() {
+  var newPwd = $('newAdminPwd').value.trim();
+  if (!newPwd || newPwd.length < 4) { showToast('新密码至少4个字符', 'error'); return; }
+  try {
+    var r = await fetch(API + '/api/v2/sys/management/password/change', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ admin_password: ADMIN_PWD, new_password: newPwd })
+    });
+    var d = await r.json();
+    if (d.success) { ADMIN_PWD = newPwd; $('newAdminPwd').value = ''; showToast('管理密码已更新', 'success'); }
+    else showToast(d.error || '更新失败', 'error');
+  } catch (e) { showToast('网络错误', 'error'); }
 }
 
 // ====== INIT ======

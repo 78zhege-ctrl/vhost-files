@@ -12,6 +12,7 @@ const jwt = require('jsonwebtoken');
 const multer = require('multer');
 const cors = require('cors');
 const compression = require('compression');
+const os = require('os');
 
 // ============ 配置 ============
 const PORT = process.env.PORT || 3000;
@@ -28,12 +29,25 @@ if (process.env.JWT_SECRET) {
   fs.writeFileSync(SECRET_FILE, JWT_SECRET);
   console.log('[安全] 已生成并保存新密钥');
 }
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
-if (!ADMIN_PASSWORD) {
-  console.error('[安全] 警告：未设置 ADMIN_PASSWORD 环境变量，使用随机密码');
-  console.error('[安全] 请在启动前设置: export ADMIN_PASSWORD="你的管理密码"');
+const ADMIN_PASSWORD_FILE = path.join(DATA_DIR, 'admin_password.key');
+let ACTUAL_ADMIN_PASSWORD;
+if (process.env.ADMIN_PASSWORD) {
+  ACTUAL_ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
+  fs.writeFileSync(ADMIN_PASSWORD_FILE, ACTUAL_ADMIN_PASSWORD);
+  console.log('[安全] 管理密码已从环境变量加载并持久化');
+} else if (fs.existsSync(ADMIN_PASSWORD_FILE)) {
+  ACTUAL_ADMIN_PASSWORD = fs.readFileSync(ADMIN_PASSWORD_FILE, 'utf8').trim();
+  console.log('[安全] 管理密码已从持久化文件加载');
+} else {
+  ACTUAL_ADMIN_PASSWORD = crypto.randomBytes(8).toString('hex');
+  fs.writeFileSync(ADMIN_PASSWORD_FILE, ACTUAL_ADMIN_PASSWORD);
+  console.error('[安全] ========================================');
+  console.error('[安全] 未设置 ADMIN_PASSWORD，已生成随机密码');
+  console.error('[安全] 管理密码: ' + ACTUAL_ADMIN_PASSWORD);
+  console.error('[安全] 请牢记此密码，或设置环境变量：');
+  console.error('[安全] export ADMIN_PASSWORD="你的密码"');
+  console.error('[安全] ========================================');
 }
-const ACTUAL_ADMIN_PASSWORD = ADMIN_PASSWORD || (() => { const rp = crypto.randomBytes(16).toString('hex'); console.error('[安全] 随机密码: ' + rp); console.error('[安全] 下次启动请设置: export ADMIN_PASSWORD="你的密码"'); return rp; })();
 const HMAC_SECRET = crypto.createHash('sha256').update(JWT_SECRET + 'hmac').digest();
 const REFRESH_SECRET = crypto.createHash('sha256').update(JWT_SECRET + 'refresh').digest();
 const HOSTS_DIR = path.join(__dirname, 'hosts');
@@ -673,14 +687,75 @@ app.get('/api/v2/sys/management/ips/geo', hmacMiddleware, function(req, res) {
   res.json({ success: true, data: {} });
 });
 
+// 管理密码修改
+app.post('/api/v2/sys/management/password/change', hmacMiddleware, function(req, res) {
+  var newPwd = req.body.new_password;
+  if (!newPwd || newPwd.length < 4) return res.status(400).json({ error: '新密码至少4个字符' });
+  ACTUAL_ADMIN_PASSWORD = newPwd;
+  fs.writeFileSync(ADMIN_PASSWORD_FILE, ACTUAL_ADMIN_PASSWORD);
+  console.log('[安全] 管理密码已更新');
+  res.json({ success: true, message: '管理密码已更新' });
+});
+
 app.get('/api/v2/sys/management/accounts/lockouts', hmacMiddleware, function(req, res) {
   res.json({ success: true, lockouts: DB.lockouts });
 });
 
-// 资源监控
-app.get('/api/v2/sys/resources', authMiddleware, function(req, res) {
-  const mem = process.memoryUsage();
-  res.json({ success: true, memory: { heapUsed: Math.round(mem.heapUsed / 1024 / 1024) + 'MB', heapTotal: Math.round(mem.heapTotal / 1024 / 1024) + 'MB', rss: Math.round(mem.rss / 1024 / 1024) + 'MB' }, uptime: Math.round(process.uptime()) + 's' });
+// 资源监控（返回 CPU/内存/磁盘，panel 可直接渲染）
+app.get('/api/v2/sys/resources', hmacMiddleware, function(req, res) {
+  try {
+    // CPU：load average 和核心数
+    var cpus = os.cpus();
+    var loadAvg = os.loadavg();
+    var cpu = {
+      cores: cpus.length,
+      loadAvg: loadAvg,
+      model: cpus.length > 0 ? cpus[0].model : 'Unknown'
+    };
+    // 内存：total / free
+    var totalMem = os.totalmem();
+    var freeMem = os.freemem();
+    var usedMem = totalMem - freeMem;
+    var memory = {
+      total: totalMem,
+      free: freeMem,
+      used: usedMem,
+      usagePercent: parseFloat((usedMem / totalMem * 100).toFixed(1))
+    };
+    // 进程内存（Node.js）
+    var mem = process.memoryUsage();
+    var processMemory = {
+      heapUsed: Math.round(mem.heapUsed / 1024 / 1024),
+      heapTotal: Math.round(mem.heapTotal / 1024 / 1024),
+      rss: Math.round(mem.rss / 1024 / 1024)
+    };
+    // 磁盘：粗略估算（DATA_DIR 所在分区）
+    var disk = { usagePercent: 0 };
+    try {
+      var child_process = require('child_process');
+      var dfOut = child_process.execSync('df -k "' + DATA_DIR + '" 2>/dev/null', { timeout: 3000, encoding: 'utf8' });
+      var lines = dfOut.trim().split('\n');
+      if (lines.length >= 2) {
+        var cols = lines[1].split(/\s+/);
+        if (cols.length >= 5) {
+          var diskTotal = parseInt(cols[1]) * 1024;
+          var diskUsed = parseInt(cols[2]) * 1024;
+          disk = { total: diskTotal, used: diskUsed, free: diskTotal - diskUsed, usagePercent: parseFloat((diskUsed / diskTotal * 100).toFixed(1)) };
+        }
+      }
+    } catch (e) {}
+    res.json({
+      success: true,
+      cpu: cpu,
+      memory: memory,
+      processMemory: processMemory,
+      disk: disk,
+      uptime: Math.round(process.uptime())
+    });
+  } catch (e) {
+    console.error('[资源监控]', e.message);
+    res.status(500).json({ error: '获取资源信息失败' });
+  }
 });
 
 // ============ cpolar 隧道自动检测（后台轮询 + 缓存） ============
@@ -688,8 +763,7 @@ const tunnelCache = { tunnels: [], lan: null, lastUpdate: 0, lastError: null };
 
 // 初始化局域网地址（只检测一次，不会变）
 try {
-  const os = require('os');
-  const nets = os.networkInterfaces();
+  var nets = os.networkInterfaces();
   var netNames = Object.keys(nets);
   for (var i = 0; i < netNames.length; i++) {
     var netList = nets[netNames[i]];
@@ -1215,7 +1289,7 @@ server.listen(PORT, function() {
   console.log('手机多租户虚拟主机 v4.0.0 安全加固版');
   console.log('========================================');
   console.log('监听端口: ' + PORT);
-  console.log('管理密码: ' + (ADMIN_PASSWORD ? '已设置(环境变量)' : '未设置(随机生成)'));
+  console.log('管理密码: ' + ACTUAL_ADMIN_PASSWORD + (process.env.ADMIN_PASSWORD ? ' (环境变量)' : fs.existsSync(ADMIN_PASSWORD_FILE) ? ' (持久化)' : ' (随机生成)'));
   console.log('用户数量: ' + Object.keys(DB.users).length);
   console.log('主机数量: ' + Object.keys(DB.hosts).length);
   console.log('========================================');
