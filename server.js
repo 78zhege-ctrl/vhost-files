@@ -683,8 +683,41 @@ app.get('/api/v2/sys/resources', hmacMiddleware, (req, res) => {
 });
 
 // 服务器信息
-app.get('/api/v2/server/info', (req, res) => {
-  res.json({ version: 'v4.0.0', name: '手机多租户虚拟主机', port: PORT });
+app.get('/api/v2/server/info', async (req, res) => {
+  const info = { version: 'v4.0.0', name: '手机多租户虚拟主机', port: PORT, tunnels: [], lan: null };
+  // 自动检测 cpolar 隧道
+  try {
+    const os = require('os');
+    const nets = os.networkInterfaces();
+    for (const name of Object.keys(nets)) {
+      for (const net of nets[name]) {
+        if (net.family === 'IPv4' && !net.internal) {
+          info.lan = `http://${net.address}:${PORT}`;
+          break;
+        }
+      }
+      if (info.lan) break;
+    }
+  } catch (e) {}
+  // 尝试从 cpolar 本地 API 获取隧道
+  try {
+    const cpolarRes = await new Promise((resolve, reject) => {
+      const h = http.get('http://127.0.0.1:4040/api/tunnels', { timeout: 2000 }, (r) => {
+        let data = '';
+        r.on('data', chunk => data += chunk);
+        r.on('end', () => resolve(data));
+      });
+      h.on('error', reject);
+      h.on('timeout', () => { h.destroy(); reject(new Error('timeout')); });
+    });
+    const tunnels = JSON.parse(cpolarRes);
+    if (tunnels.tunnels && tunnels.tunnels.length > 0) {
+      info.tunnels = tunnels.tunnels.map(t => t.public_url);
+    }
+  } catch (e) {
+    // cpolar 未运行或不可达，忽略
+  }
+  res.json(info);
 });
 
 // 健康检查
