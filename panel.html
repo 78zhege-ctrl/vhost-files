@@ -1,0 +1,1837 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<title>初叶 · 虚拟主机</title>
+<style>
+/* ====== CSS Variables (Light Theme) ====== */
+:root {
+  --bg: #f0edf7;
+  --bg-pattern: radial-gradient(ellipse at 20% 20%, rgba(124,58,237,0.08) 0%, transparent 50%), radial-gradient(ellipse at 80% 80%, rgba(99,102,241,0.06) 0%, transparent 50%);
+  --card: rgba(255,255,255,0.72);
+  --card-hover: rgba(255,255,255,0.88);
+  --card-solid: #ffffff;
+  --text: #1a1a2e;
+  --text2: #6b6b80;
+  --text3: #a0a0b8;
+  --border: rgba(255,255,255,0.5);
+  --border-solid: #e8e4f0;
+  --accent: #7c3aed;
+  --accent2: #6366f1;
+  --accent-light: rgba(124,58,237,0.12);
+  --accent-glow: rgba(124,58,237,0.15);
+  --green: #10b981;
+  --green-bg: rgba(16,185,129,0.12);
+  --red: #ef4444;
+  --red-bg: rgba(239,68,68,0.12);
+  --orange: #f59e0b;
+  --orange-bg: rgba(245,158,11,0.12);
+  --blue: #3b82f6;
+  --blue-bg: rgba(59,130,246,0.12);
+  --shadow: 0 2px 12px rgba(0,0,0,0.06), 0 0 0 1px rgba(0,0,0,0.03);
+  --shadow-lg: 0 8px 32px rgba(0,0,0,0.08), 0 0 0 1px rgba(0,0,0,0.04);
+  --glass-bg: rgba(255,255,255,0.6);
+  --glass-border: rgba(255,255,255,0.6);
+  --input-bg: rgba(240,237,247,0.7);
+  --radius: 16px;
+  --radius-sm: 10px;
+  --transition: 0.25s cubic-bezier(0.4,0,0.2,1);
+}
+
+/* ====== Dark Theme ====== */
+[data-theme="dark"] {
+  --bg: #0a0a14;
+  --bg-pattern: radial-gradient(ellipse at 20% 20%, rgba(124,58,237,0.12) 0%, transparent 50%), radial-gradient(ellipse at 80% 80%, rgba(99,102,241,0.08) 0%, transparent 50%);
+  --card: rgba(30,27,46,0.7);
+  --card-hover: rgba(40,36,58,0.85);
+  --card-solid: #1e1b2e;
+  --text: #e8e6f0;
+  --text2: #9d9ab5;
+  --text3: #5e5b78;
+  --border: rgba(255,255,255,0.08);
+  --border-solid: #2a2740;
+  --accent-light: rgba(124,58,237,0.18);
+  --accent-glow: rgba(124,58,237,0.25);
+  --green-bg: rgba(16,185,129,0.15);
+  --red-bg: rgba(239,68,68,0.15);
+  --orange-bg: rgba(245,158,11,0.15);
+  --blue-bg: rgba(59,130,246,0.15);
+  --shadow: 0 2px 12px rgba(0,0,0,0.2), 0 0 0 1px rgba(255,255,255,0.03);
+  --shadow-lg: 0 8px 32px rgba(0,0,0,0.3), 0 0 0 1px rgba(255,255,255,0.04);
+  --glass-bg: rgba(30,27,46,0.5);
+  --glass-border: rgba(255,255,255,0.08);
+  --input-bg: rgba(20,18,32,0.7);
+}
+
+* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+body {
+  background: var(--bg);
+  background-image: var(--bg-pattern);
+  background-attachment: fixed;
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif;
+  min-height: 100vh;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  transition: background-color 0.4s, color 0.4s;
+}
+.container { max-width:560px; margin:0 auto; padding:12px 16px 100px; }
+.hidden { display:none!important; }
+
+/* ====== Theme Toggle ====== */
+.theme-toggle {
+  position: relative;
+  width: 40px; height: 40px;
+  border-radius: 50%;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  transition: var(--transition);
+  color: var(--text);
+  flex-shrink: 0;
+}
+.theme-toggle:hover { background: var(--card-hover); transform: scale(1.05); }
+.theme-toggle:active { transform: scale(0.92); }
+.theme-toggle .sun-icon, .theme-toggle .moon-icon {
+  position: absolute;
+  transition: all 0.4s cubic-bezier(0.4,0,0.2,1);
+}
+[data-theme="light"] .theme-toggle .sun-icon { opacity:1; transform: rotate(0deg) scale(1); }
+[data-theme="light"] .theme-toggle .moon-icon { opacity:0; transform: rotate(90deg) scale(0.5); }
+[data-theme="dark"] .theme-toggle .sun-icon { opacity:0; transform: rotate(-90deg) scale(0.5); }
+[data-theme="dark"] .theme-toggle .moon-icon { opacity:1; transform: rotate(0deg) scale(1); }
+
+/* ====== Header ====== */
+.header { padding:20px 0 12px; display:flex; align-items:center; justify-content:space-between; }
+.header-left { display:flex; align-items:center; gap:10px; }
+.logo {
+  width:38px; height:38px;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  border-radius:12px;
+  display:flex; align-items:center; justify-content:center;
+  font-size:20px; color:#fff; font-weight:700;
+  box-shadow: 0 4px 12px var(--accent-glow);
+}
+.header h1 { font-size:20px; font-weight:700; letter-spacing:-.3px; }
+.header-actions { display:flex; align-items:center; gap:8px; }
+.refresh-btn {
+  width:36px; height:36px; border-radius:50%;
+  background: var(--glass-bg); border:1px solid var(--glass-border);
+  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  display:flex; align-items:center; justify-content:center;
+  cursor:pointer; font-size:16px; transition:var(--transition); color:var(--text2);
+}
+.refresh-btn:active { transform:scale(.9); background:var(--card-hover); }
+
+/* ====== Tabs ====== */
+.tab-bar {
+  display:flex; gap:4px; margin-bottom:16px;
+  background: var(--glass-bg); border:1px solid var(--glass-border);
+  border-radius:var(--radius); padding:4px;
+  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+}
+.tab-btn {
+  flex:1; padding:10px 8px; border:none; border-radius:12px;
+  background:transparent; color:var(--text2); font-size:13px; font-weight:600;
+  cursor:pointer; transition:var(--transition); white-space:nowrap;
+}
+.tab-btn.active {
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  color:#fff; box-shadow:0 4px 14px var(--accent-glow);
+}
+
+/* ====== Cards (Glassmorphism) ====== */
+.card {
+  background: var(--card); border:1px solid var(--glass-border);
+  border-radius:var(--radius); padding:18px; margin-bottom:12px;
+  box-shadow:var(--shadow); transition:var(--transition);
+  backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+  animation: cardIn 0.4s ease both;
+}
+@keyframes cardIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+.card-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; flex-wrap:wrap; gap:8px; }
+.card-title { font-size:15px; font-weight:700; color:var(--text); display:flex; align-items:center; gap:8px; }
+.card-title .icon { width:28px; height:28px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:14px; }
+
+/* ====== Buttons ====== */
+.btn {
+  display:inline-flex; align-items:center; justify-content:center; gap:6px;
+  padding:12px 20px; border:none; border-radius:var(--radius-sm);
+  font-size:14px; font-weight:600; cursor:pointer; transition:var(--transition);
+  text-decoration:none; width:100%;
+}
+.btn:active { transform:scale(.97); }
+.btn-primary {
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  color:#fff; box-shadow:0 4px 14px var(--accent-glow);
+}
+.btn-primary:disabled { opacity:.5; cursor:not-allowed; box-shadow:none; }
+.btn-secondary { background:var(--glass-bg); color:var(--text); border:1px solid var(--glass-border); }
+.btn-green { background:var(--green); color:#fff; }
+.btn-red { background:var(--red); color:#fff; }
+.btn-sm { padding:6px 12px; font-size:12px; border-radius:8px; width:auto; }
+.btn-outline { background:transparent; border:1px solid var(--border-solid); color:var(--text2); width:auto; }
+.btn-outline:hover { background:var(--card-hover); }
+
+/* ====== Inputs ====== */
+.input {
+  width:100%; padding:12px 14px;
+  background:var(--input-bg); border:1px solid var(--glass-border);
+  border-radius:var(--radius-sm); color:var(--text); font-size:14px;
+  outline:none; transition:var(--transition);
+  backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+}
+.input:focus { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-light); }
+.input-group { margin-bottom:14px; }
+.input-group label { display:block; color:var(--text2); font-size:12px; font-weight:600; margin-bottom:6px; text-transform:uppercase; letter-spacing:.5px; }
+select.input { appearance:none; -webkit-appearance:none; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239d9ab5' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 12px center; padding-right:36px; }
+
+/* ====== User card ====== */
+.user-card {
+  background:var(--card); border:1px solid var(--glass-border);
+  border-radius:var(--radius); padding:16px; margin-bottom:12px;
+  display:flex; align-items:center; gap:14px;
+  box-shadow:var(--shadow);
+  backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+}
+.user-avatar {
+  width:48px; height:48px; border-radius:50%;
+  background:linear-gradient(135deg,var(--accent),var(--accent2));
+  display:flex; align-items:center; justify-content:center;
+  font-size:22px; color:#fff; flex-shrink:0;
+}
+.user-info { flex:1; min-width:0; }
+.user-name { font-size:16px; font-weight:700; color:var(--text); }
+.user-meta { font-size:12px; color:var(--text2); margin-top:2px; display:flex; flex-wrap:wrap; gap:8px; }
+.user-badge { display:inline-block; padding:2px 10px; border-radius:20px; font-size:11px; font-weight:600; }
+.badge-free { background:var(--text3); color:#fff; }
+.badge-basic { background:var(--green); color:#fff; }
+.badge-pro { background:linear-gradient(135deg,var(--accent),var(--accent2)); color:#fff; }
+.badge-banned { background:var(--red); color:#fff; }
+.logout-btn { padding:8px 14px; background:var(--red-bg); color:var(--red); border:none; border-radius:8px; font-size:12px; font-weight:600; cursor:pointer; white-space:nowrap; }
+
+/* ====== Upload zone ====== */
+.upload-zone {
+  border:2px dashed var(--border-solid); border-radius:var(--radius);
+  padding:28px 20px; text-align:center; cursor:pointer;
+  transition:var(--transition); background:var(--input-bg);
+  backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+}
+.upload-zone:active, .upload-zone.dragover { border-color:var(--accent); background:var(--accent-light); }
+.upload-zone .icon-lg { font-size:40px; margin-bottom:10px; opacity:.8; }
+.upload-zone .text { font-size:13px; color:var(--text2); line-height:1.6; }
+.upload-zone .text b { color:var(--text); }
+.upload-btn { margin-top:12px; }
+#fileInput { display:none; }
+
+/* ====== Progress ====== */
+.progress-wrap { margin-top:12px; display:none; }
+.progress-wrap.show { display:block; }
+.progress-bar { height:6px; background:var(--border-solid); border-radius:3px; overflow:hidden; }
+.progress-fill { height:100%; width:0; background:linear-gradient(90deg,var(--accent),var(--accent2)); border-radius:3px; transition:width .3s; }
+.progress-text { font-size:11px; color:var(--text2); margin-top:4px; text-align:center; }
+
+/* ====== File list ====== */
+.file-item { display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:var(--radius-sm); transition:var(--transition); border:1px solid transparent; }
+.file-item:hover { background:var(--card-hover); border-color:var(--glass-border); }
+.file-item + .file-item { margin-top:4px; }
+.file-checkbox { width:18px; height:18px; accent-color:var(--accent); cursor:pointer; flex-shrink:0; }
+.file-icon { font-size:20px; width:36px; height:36px; border-radius:8px; background:var(--input-bg); display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.file-info { flex:1; min-width:0; }
+.file-name { font-size:13px; font-weight:600; color:var(--text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.file-meta { font-size:11px; color:var(--text3); margin-top:1px; }
+.file-actions { display:flex; gap:6px; flex-shrink:0; flex-wrap:wrap; }
+.empty-state { text-align:center; padding:32px 16px; color:var(--text3); font-size:13px; }
+.empty-state .icon { font-size:36px; margin-bottom:8px; opacity:.5; }
+
+/* ====== File toolbar (search + sort + batch) ====== */
+.file-toolbar { display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap; align-items:center; }
+.file-toolbar .search-wrap { flex:1; min-width:140px; position:relative; }
+.file-toolbar .search-wrap .search-icon { position:absolute; left:10px; top:50%; transform:translateY(-50%); font-size:14px; color:var(--text3); pointer-events:none; }
+.file-toolbar .search-wrap input { padding-left:30px; font-size:13px; }
+.file-toolbar select { width:auto; min-width:100px; font-size:12px; padding:8px 28px 8px 10px; }
+.batch-actions { display:none; gap:6px; margin-top:8px; align-items:center; }
+.batch-actions.show { display:flex; }
+.batch-actions .selected-count { font-size:12px; color:var(--text2); }
+
+/* ====== Modal ====== */
+.modal-overlay {
+  position:fixed; inset:0; background:rgba(0,0,0,.5);
+  z-index:200; display:flex; align-items:center; justify-content:center;
+  padding:20px; backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px);
+  animation: fadeIn 0.2s ease;
+}
+@keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
+.modal {
+  background:var(--card-solid); border-radius:var(--radius);
+  width:100%; max-width:380px; padding:24px;
+  box-shadow:var(--shadow-lg);
+  border:1px solid var(--glass-border);
+  animation: modalIn 0.3s ease;
+}
+@keyframes modalIn { from { opacity:0; transform:translateY(20px) scale(0.96); } to { opacity:1; transform:translateY(0) scale(1); } }
+.modal h3 { font-size:16px; margin-bottom:16px; }
+.modal-actions { display:flex; gap:10px; margin-top:20px; }
+
+/* ====== Stats grid ====== */
+.stats-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:10px; }
+.stat-item {
+  background:var(--input-bg); border-radius:var(--radius-sm);
+  padding:16px; text-align:center;
+  backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+  border:1px solid var(--glass-border);
+}
+.stat-value { font-size:24px; font-weight:700; color:var(--accent); }
+.stat-label { font-size:11px; color:var(--text2); margin-top:2px; text-transform:uppercase; letter-spacing:.5px; }
+
+/* ====== Table ====== */
+.table-wrap { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+.table { width:100%; border-collapse:collapse; font-size:12px; min-width:500px; }
+.table th { text-align:left; padding:10px; color:var(--text2); border-bottom:1px solid var(--border-solid); font-weight:600; font-size:11px; text-transform:uppercase; letter-spacing:.5px; white-space:nowrap; }
+.table td { padding:10px; border-bottom:1px solid var(--border-solid); white-space:nowrap; }
+.table tr:hover td { background:var(--card-hover); }
+.badge-sm { display:inline-block; padding:2px 8px; border-radius:6px; font-size:10px; font-weight:600; }
+.badge-danger { background:var(--red-bg); color:var(--red); }
+.badge-success { background:var(--green-bg); color:var(--green); }
+.badge-warn { background:var(--orange-bg); color:var(--orange); }
+
+/* ====== Security indicator ====== */
+.sec-indicator { display:inline-flex; align-items:center; gap:6px; padding:8px 14px; border-radius:8px; font-size:12px; font-weight:600; }
+.sec-safe { background:var(--green-bg); color:var(--green); }
+.sec-warn { background:var(--orange-bg); color:var(--orange); }
+.sec-danger { background:var(--red-bg); color:var(--red); }
+.sec-dot { width:8px; height:8px; border-radius:50%; display:inline-block; }
+.sec-dot.safe { background:var(--green); }
+.sec-dot.warn { background:var(--orange); }
+.sec-dot.danger { background:var(--red); }
+
+/* ====== Reputation gauge ====== */
+.rep-gauge { display:flex; align-items:center; gap:8px; padding:8px 12px; border-radius:8px; background:var(--input-bg); border:1px solid var(--glass-border); margin-top:8px; }
+.rep-bar { flex:1; height:6px; background:var(--border-solid); border-radius:3px; overflow:hidden; }
+.rep-fill { height:100%; border-radius:3px; transition:width .5s; }
+.rep-high { background:var(--green); }
+.rep-mid { background:var(--orange); }
+.rep-low { background:var(--red); }
+.rep-score { font-size:18px; font-weight:700; min-width:30px; text-align:center; }
+
+/* ====== Quick actions ====== */
+.quick-actions { display:grid; grid-template-columns:repeat(2,1fr); gap:8px; }
+.quick-action {
+  display:flex; align-items:center; gap:8px; padding:12px;
+  border-radius:var(--radius-sm); background:var(--input-bg);
+  border:1px solid var(--glass-border); cursor:pointer;
+  transition:var(--transition); font-size:13px; font-weight:600;
+  color:var(--text); text-align:left;
+}
+.quick-action:active { transform:scale(.97); background:var(--card-hover); }
+.quick-action .qa-icon { font-size:18px; width:32px; height:32px; border-radius:8px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+
+/* ====== Admin tabs ====== */
+.admin-tabs { display:flex; gap:4px; margin-bottom:12px; overflow-x:auto; -webkit-overflow-scrolling:touch; flex-wrap:wrap; }
+.admin-tab {
+  padding:8px 14px; border-radius:8px;
+  background:var(--glass-bg); border:1px solid var(--glass-border);
+  font-size:12px; font-weight:600; cursor:pointer; white-space:nowrap;
+  color:var(--text2); transition:var(--transition);
+  backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+}
+.admin-tab.active { background:var(--accent); color:#fff; border-color:var(--accent); }
+
+/* ====== Logs ====== */
+.log-box {
+  background:var(--input-bg); border-radius:var(--radius-sm);
+  padding:14px; font-size:12px; color:var(--text2); line-height:1.8;
+  max-height:200px; overflow-y:auto;
+  font-family:"SF Mono",Menlo,monospace; white-space:pre-wrap;
+  word-break:break-all; border:1px solid var(--glass-border);
+}
+.code-box {
+  background:var(--input-bg); border-radius:8px; padding:12px;
+  font-family:"SF Mono",Menlo,monospace; font-size:12px;
+  color:var(--green); line-height:1.8; margin-top:8px;
+  word-break:break-all; border:1px solid var(--glass-border);
+}
+
+/* ====== Toast ====== */
+.toast {
+  position:fixed; top:16px; left:50%;
+  transform:translateX(-50%) translateY(-80px);
+  background:var(--card-solid); border:1px solid var(--glass-border);
+  padding:12px 20px; border-radius:var(--radius-sm);
+  font-size:13px; color:var(--text); z-index:300;
+  opacity:0; transition:all .3s; pointer-events:none;
+  max-width:calc(100% - 32px); text-align:center;
+  box-shadow:var(--shadow-lg);
+  backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+}
+.toast.show { transform:translateX(-50%) translateY(0); opacity:1; }
+.toast.error { border-color:var(--red); color:var(--red); }
+.toast.success { border-color:var(--green); color:var(--green); }
+
+/* ====== Overlay / Spinner ====== */
+.overlay {
+  position:fixed; inset:0; background:rgba(0,0,0,.4);
+  z-index:250; display:flex; align-items:center; justify-content:center;
+  backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px);
+}
+.overlay.hidden { display:none; }
+.spinner { width:36px; height:36px; border:3px solid var(--border-solid); border-top-color:var(--accent); border-radius:50%; animation:spin .8s linear infinite; }
+@keyframes spin { to { transform:rotate(360deg); } }
+
+/* ====== Login page ====== */
+.login-page {
+  position:fixed; inset:0; background:var(--bg);
+  background-image:var(--bg-pattern);
+  z-index:300; display:flex; flex-direction:column;
+  align-items:center; justify-content:center; padding:24px;
+  transition: background-color 0.4s;
+}
+.login-page.hidden { display:none; }
+.login-box { width:100%; max-width:340px; text-align:center; }
+.login-logo {
+  width:64px; height:64px;
+  background:linear-gradient(135deg,var(--accent),var(--accent2));
+  border-radius:20px; display:flex; align-items:center;
+  justify-content:center; font-size:30px; color:#fff;
+  margin:0 auto 16px; box-shadow:0 8px 24px var(--accent-glow);
+}
+.login-card {
+  background:var(--card); border:1px solid var(--glass-border);
+  border-radius:var(--radius); padding:28px 24px;
+  backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px);
+  box-shadow:var(--shadow-lg);
+}
+.login-title { font-size:24px; font-weight:700; letter-spacing:-.3px; margin-bottom:4px; }
+.login-sub { color:var(--text2); font-size:14px; margin-bottom:28px; }
+.login-input {
+  width:100%; padding:14px 16px;
+  background:var(--input-bg); border:1px solid var(--glass-border);
+  border-radius:var(--radius-sm); color:var(--text); font-size:15px;
+  margin-bottom:10px; outline:none; transition:var(--transition);
+  text-align:left; backdrop-filter:blur(4px); -webkit-backdrop-filter:blur(4px);
+}
+.login-input:focus { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-light); }
+.login-btn {
+  width:100%; padding:14px;
+  background:linear-gradient(135deg,var(--accent),var(--accent2));
+  color:#fff; border:none; border-radius:var(--radius-sm);
+  font-size:15px; font-weight:600; cursor:pointer;
+  margin-bottom:8px; transition:var(--transition);
+  box-shadow:0 4px 14px var(--accent-glow);
+}
+.login-btn:active { transform:scale(.98); }
+.login-btn:disabled { opacity:.5; }
+.login-btn-outline {
+  background:var(--glass-bg); color:var(--text);
+  border:1px solid var(--glass-border);
+  backdrop-filter:blur(4px); -webkit-backdrop-filter:blur(4px);
+}
+.login-switch { color:var(--text2); font-size:13px; margin-top:12px; }
+.login-switch span { color:var(--accent); cursor:pointer; font-weight:600; }
+
+/* ====== Tag ====== */
+.tag { display:inline-flex; align-items:center; gap:4px; padding:4px 10px; border-radius:6px; font-size:11px; font-weight:600; background:var(--input-bg); color:var(--text2); border:1px solid var(--glass-border); }
+.tag-accent { background:var(--accent-light); color:var(--accent); border-color:var(--accent-light); }
+
+/* ====== Session list ====== */
+.session-item { display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:var(--radius-sm); background:var(--input-bg); border:1px solid var(--glass-border); }
+.session-item + .session-item { margin-top:6px; }
+.session-info { flex:1; min-width:0; font-size:12px; }
+.session-device { font-weight:600; color:var(--text); }
+.session-meta { color:var(--text3); font-size:11px; }
+.session-current { font-size:10px; padding:2px 8px; border-radius:10px; background:var(--green-bg); color:var(--green); }
+
+/* ====== Responsive ====== */
+@media (max-width:400px) {
+  .container { padding:8px 12px 100px; }
+  .card { padding:14px; border-radius:14px; }
+  .stats-grid { grid-template-columns:repeat(2,1fr); gap:8px; }
+  .stat-value { font-size:20px; }
+  .file-actions { gap:4px; }
+  .file-actions .btn-sm { padding:4px 8px; font-size:11px; }
+}
+</style>
+</head>
+<body>
+
+<!-- ====== LOGIN PAGE ====== -->
+<div class="login-page" id="loginPage">
+  <div class="login-box">
+    <div class="login-logo">☁</div>
+    <div class="login-card">
+      <div class="login-title">初叶 · 虚拟主机</div>
+      <div class="login-sub">在手机上运行你的网站</div>
+      <input type="text" class="login-input" id="loginUser" placeholder="用户名" autocomplete="off">
+      <input type="password" class="login-input" id="loginPwd" placeholder="密码">
+      <button class="login-btn" id="loginBtn" onclick="doLogin()">登录</button>
+      <button class="login-btn login-btn-outline" id="regBtn" onclick="doRegister()">注册账号</button>
+      <div class="login-switch">站长管理？<span onclick="enterAdmin()">进入后台 →</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- ====== MAIN PAGE ====== -->
+<div class="container" id="mainPage" style="display:none">
+  <div class="header">
+    <div class="header-left">
+      <div class="logo">☁</div>
+      <h1>初叶</h1>
+    </div>
+    <div class="header-actions">
+      <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()" title="切换主题">
+        <span class="sun-icon">☀️</span>
+        <span class="moon-icon">🌙</span>
+      </button>
+      <div class="refresh-btn" onclick="refreshAll()">↻</div>
+    </div>
+  </div>
+
+  <div class="tab-bar">
+    <button class="tab-btn active" id="tabBtnUser" onclick="switchTab('user')">我的主机</button>
+    <button class="tab-btn" id="tabBtnAdmin" onclick="switchTab('admin')">管理后台</button>
+  </div>
+
+  <!-- ====== USER TAB ====== -->
+  <div id="tabUser">
+    <div class="user-card" id="userCard">
+      <div class="user-avatar">👤</div>
+      <div class="user-info">
+        <div class="user-name" id="uName">加载中</div>
+        <div class="user-meta">
+          <span id="uBadge" class="user-badge badge-free">免费版</span>
+          <span id="uSpace">--</span>
+          <span id="uId" style="display:none">--</span>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end">
+        <button class="logout-btn" onclick="doLogout()">退出</button>
+        <button class="btn btn-sm btn-outline" onclick="showPwdModal()" style="font-size:11px">改密码</button>
+        <button class="btn btn-sm btn-outline" onclick="showCleanupModal()" style="font-size:11px;color:var(--orange)">清空间</button>
+        <button class="btn btn-sm btn-outline" onclick="deleteAccount()" style="font-size:11px;color:var(--red)">删账号</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><span class="icon" style="background:var(--accent-light);color:var(--accent)">📊</span> 仪表盘</div>
+      </div>
+      <div class="stats-grid" style="margin-bottom:12px">
+        <div class="stat-item"><div class="stat-value" id="dashIPs">0</div><div class="stat-label">已知 IP</div></div>
+        <div class="stat-item"><div class="stat-value" id="dashFiles">0</div><div class="stat-label">文件数</div></div>
+        <div class="stat-item"><div class="stat-value" id="dashSpace">0</div><div class="stat-label">已用 MB</div></div>
+        <div class="stat-item"><div class="stat-value" id="dashPlan">免费</div><div class="stat-label">当前套餐</div></div>
+      </div>
+      <div id="secStatus" class="sec-indicator sec-safe"><span class="sec-dot safe"></span> 安全状态正常</div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><span class="icon" style="background:var(--blue-bg);color:var(--blue)">🔗</span> 主机地址</div>
+        <button class="btn btn-sm btn-outline" onclick="copyUrls()">复制</button>
+      </div>
+      <div class="log-box" id="urlList" style="max-height:120px;font-size:11px">加载中...</div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><span class="icon" style="background:var(--accent-light);color:var(--accent)">📤</span> 上传文件</div>
+      </div>
+      <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()">
+        <div class="icon-lg">📦</div>
+        <div class="text"><b>点击选择</b> 或 <b>拖拽文件</b> 到此处<br>支持 HTML/CSS/JS/PHP/ZIP 等 · 最大 50MB</div>
+      </div>
+      <input type="file" id="fileInput" onchange="onFileSelected(this)">
+      <div class="progress-wrap" id="progressWrap">
+        <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+        <div class="progress-text" id="progressText">0%</div>
+      </div>
+      <button class="btn btn-primary upload-btn" id="uploadBtn" onclick="doUpload()" disabled>选择文件后上传</button>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><span class="icon" style="background:var(--green-bg);color:var(--green)">📁</span> 我的文件</div>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-sm btn-outline" onclick="showMkdir()">+ 新建文件夹</button>
+          <button class="btn btn-sm btn-outline" onclick="loadFiles()">↻ 刷新</button>
+        </div>
+      </div>
+      <!-- File search & sort toolbar -->
+      <div class="file-toolbar">
+        <div class="search-wrap">
+          <span class="search-icon">🔍</span>
+          <input type="text" class="input" id="fileSearchInput" placeholder="搜索文件..." oninput="searchFiles()" style="font-size:13px">
+        </div>
+        <select class="input" id="fileSortSelect" onchange="sortFiles()" style="font-size:12px;width:auto">
+          <option value="">默认排序</option>
+          <option value="name_asc">名称 ↑</option>
+          <option value="name_desc">名称 ↓</option>
+          <option value="size_asc">大小 ↑</option>
+          <option value="size_desc">大小 ↓</option>
+          <option value="date_asc">日期 ↑</option>
+          <option value="date_desc">日期 ↓</option>
+        </select>
+      </div>
+      <!-- Batch actions -->
+      <div class="batch-actions" id="batchActions">
+        <span class="selected-count" id="selectedCount">已选 0 项</span>
+        <button class="btn btn-sm btn-red" onclick="batchDeleteFiles()">批量删除</button>
+        <button class="btn btn-sm btn-outline" onclick="toggleSelectAll()">全选/取消</button>
+      </div>
+      <div id="fileList"><div class="empty-state"><div class="icon">📭</div>暂无文件，上传一个吧</div></div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><span class="icon" style="background:var(--orange-bg);color:var(--orange)">🎫</span> 兑换卡密</div>
+      </div>
+      <input type="text" class="input" id="cardCode" placeholder="输入卡密，如 VIP-5YUAN-XXXXXXXX" autocomplete="off" style="margin-bottom:10px">
+      <button class="btn btn-primary" id="redeemBtn" onclick="redeemCard()">立即兑换</button>
+    </div>
+
+    <!-- Session Management -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><span class="icon" style="background:var(--blue-bg);color:var(--blue)">📱</span> 设备管理</div>
+        <button class="btn btn-sm btn-outline" onclick="loadSessions()">↻ 刷新</button>
+      </div>
+      <div id="sessionList"><div class="empty-state" style="padding:16px"><div class="icon" style="font-size:24px">📱</div>点击刷新加载活跃会话</div></div>
+    </div>
+
+    <!-- Activity Log -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><span class="icon" style="background:var(--green-bg);color:var(--green)">📋</span> 活动日志</div>
+        <button class="btn btn-sm btn-outline" onclick="loadActivityLog()">↻ 刷新</button>
+      </div>
+      <div id="activityLog"><div class="empty-state" style="padding:16px"><div class="icon" style="font-size:24px">📋</div>点击刷新查看活动日志</div></div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><span class="icon" style="background:var(--green-bg);color:var(--green)">🌐</span> 访问网站</div>
+      </div>
+      <p style="font-size:13px;color:var(--text2);margin-bottom:12px">上传 index.html 或 index.php 后即可访问</p>
+      <a class="btn btn-green" id="openSiteBtn" href="#" target="_blank">打开我的网站</a>
+    </div>
+  </div>
+
+  <!-- ====== ADMIN TAB ====== -->
+  <div id="tabAdmin" style="display:none">
+    <div class="card" id="loginCard">
+      <div class="card-header">
+        <div class="card-title"><span class="icon" style="background:var(--red-bg);color:var(--red)">🔐</span> 管理登录</div>
+      </div>
+      <div class="input-group">
+        <label>管理密码</label>
+        <input type="password" class="input" id="adminPwd" placeholder="输入管理密码">
+      </div>
+      <button class="btn btn-primary" onclick="adminLogin()">登录</button>
+    </div>
+
+    <div id="dashboard" class="hidden">
+      <!-- Admin tabs -->
+      <div class="admin-tabs">
+        <button class="admin-tab active" onclick="switchAdminTab('overview')">📊 概览</button>
+        <button class="admin-tab" onclick="switchAdminTab('users')">👥 用户</button>
+        <button class="admin-tab" onclick="switchAdminTab('cards')">🎫 卡密</button>
+        <button class="admin-tab" onclick="switchAdminTab('security')">🛡️ 安全</button>
+        <button class="admin-tab" onclick="switchAdminTab('system')">⚙️ 系统</button>
+      </div>
+
+      <!-- Overview -->
+      <div id="adminOverview">
+        <div class="card">
+          <div class="card-header"><div class="card-title">📊 实时统计</div></div>
+          <div class="stats-grid">
+            <div class="stat-item"><div class="stat-value" id="totalUsers">0</div><div class="stat-label">总用户</div></div>
+            <div class="stat-item"><div class="stat-value" id="totalFiles">0</div><div class="stat-label">总文件</div></div>
+            <div class="stat-item"><div class="stat-value" id="totalBans">0</div><div class="stat-label">已封禁</div></div>
+            <div class="stat-item"><div class="stat-value" id="totalCards">0</div><div class="stat-label">卡密数</div></div>
+          </div>
+        </div>
+
+        <!-- System Resources -->
+        <div class="card">
+          <div class="card-header"><div class="card-title">🖥️ 系统资源</div></div>
+          <div id="systemResources">
+            <div style="margin-bottom:12px">
+              <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><span>CPU</span><span id="cpuUsage">--</span></div>
+              <div class="progress-bar"><div class="progress-fill" id="cpuBar" style="width:0%;background:var(--accent)"></div></div>
+            </div>
+            <div>
+              <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><span>内存</span><span id="memUsage">--</span></div>
+              <div class="progress-bar"><div class="progress-fill" id="memBar" style="width:0%;background:var(--green)"></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Users -->
+      <div id="adminUsers" class="hidden">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">👥 用户管理</div>
+            <button class="btn btn-sm btn-outline" onclick="loadUsers()">↻</button>
+          </div>
+          <div class="table-wrap">
+            <table class="table" id="usersTable">
+              <thead><tr><th>用户名</th><th>套餐</th><th>空间</th><th>IP数</th><th>状态</th><th>操作</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header"><div class="card-title">🚫 账号封禁</div></div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <input type="text" class="input" id="banUserInput" placeholder="用户名" style="flex:1;min-width:120px">
+            <input type="text" class="input" id="banReasonInput" placeholder="原因" value="违规" style="flex:1;min-width:100px">
+            <button class="btn btn-red btn-sm" onclick="banUser()" style="width:auto">封禁账号</button>
+          </div>
+          <p style="font-size:11px;color:var(--text3);margin-top:8px">封禁后该账号所有关联 IP 和设备将被阻止</p>
+        </div>
+
+        <!-- Behavior Score Query -->
+        <div class="card">
+          <div class="card-header"><div class="card-title">🔍 行为评分查询</div></div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+            <input type="text" class="input" id="behaviorUserInput" placeholder="输入IP地址" style="flex:1;min-width:140px">
+            <button class="btn btn-sm btn-outline" onclick="queryBehaviorScore()" style="width:auto">查询</button>
+          </div>
+          <div id="behaviorResult" style="font-size:12px;color:var(--text2)"></div>
+        </div>
+      </div>
+
+      <!-- Cards -->
+      <div id="adminCards" class="hidden">
+        <div class="card">
+          <div class="card-header"><div class="card-title">🎫 卡密管理</div></div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin-bottom:14px">
+            <div class="input-group" style="flex:1;min-width:100px;margin-bottom:0">
+              <label>套餐</label>
+              <select class="input" id="cardPlan"><option value="basic">基础版 5元/月</option><option value="pro">高级版 9.99元/月</option></select>
+            </div>
+            <div class="input-group" style="width:70px;margin-bottom:0">
+              <label>数量</label>
+              <input type="number" class="input" id="cardCount" value="1" min="1" max="50">
+            </div>
+            <button class="btn btn-primary btn-sm" onclick="generateCards()" style="width:auto">生成</button>
+          </div>
+          <div id="newCards"></div>
+          <div class="table-wrap" style="margin-top:16px">
+            <table class="table" id="cardsTable">
+              <thead><tr><th>卡密</th><th>套餐</th><th>状态</th><th>使用者</th><th>时间</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Security -->
+      <div id="adminSecurity" class="hidden">
+        <div class="card">
+          <div class="card-header"><div class="card-title">🔥 安全日志</div></div>
+          <div class="log-box" id="firewallLogs">暂无日志</div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">🏷️ IP 信誉</div>
+            <button class="btn btn-sm btn-outline" onclick="loadIPReputation()">↻</button>
+          </div>
+          <div class="log-box" id="ipReputation" style="max-height:200px;font-size:11px">点击刷新查看低信誉IP...</div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">🛡️ IP 管理</div>
+            <div style="display:flex;gap:6px">
+              <button class="btn btn-sm btn-outline" onclick="loadBlockedIPs()">↻</button>
+              <button class="btn btn-sm btn-outline" onclick="clearAllBans()" style="color:var(--red)">全部清除</button>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+            <input type="text" class="input" id="unbanIP" placeholder="输入要解封的 IP" style="flex:1;min-width:140px">
+            <button class="btn btn-sm btn-outline" onclick="unbanIP()" style="color:var(--green);width:auto">解封 IP</button>
+          </div>
+          <div class="log-box" id="blockedIPs" style="max-height:200px;font-size:11px">点击刷新加载...</div>
+        </div>
+
+        <!-- IP Whitelist Management -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">✅ IP 白名单</div>
+            <button class="btn btn-sm btn-outline" onclick="loadWhitelist()">↻</button>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+            <input type="text" class="input" id="whitelistIP" placeholder="输入 IP 地址" style="flex:1;min-width:140px">
+            <button class="btn btn-sm btn-primary" onclick="addWhitelistIP()" style="width:auto">添加白名单</button>
+          </div>
+          <div class="log-box" id="whitelistBox" style="max-height:200px;font-size:11px">点击刷新加载...</div>
+        </div>
+      </div>
+
+      <!-- System -->
+      <div id="adminSystem" class="hidden">
+        <div class="card">
+          <div class="card-header"><div class="card-title">🖥️ 系统资源监控</div></div>
+          <div id="systemResourcesDetail">
+            <div style="margin-bottom:14px">
+              <div style="display:flex;justify-content:space-between;font-size:13px;font-weight:600;margin-bottom:6px"><span>CPU 使用率</span><span id="cpuUsageDetail">--</span></div>
+              <div class="progress-bar" style="height:10px"><div class="progress-fill" id="cpuBarDetail" style="width:0%;background:linear-gradient(90deg,var(--accent),var(--accent2))"></div></div>
+            </div>
+            <div style="margin-bottom:14px">
+              <div style="display:flex;justify-content:space-between;font-size:13px;font-weight:600;margin-bottom:6px"><span>内存使用率</span><span id="memUsageDetail">--</span></div>
+              <div class="progress-bar" style="height:10px"><div class="progress-fill" id="memBarDetail" style="width:0%;background:linear-gradient(90deg,var(--green),#34d399)"></div></div>
+            </div>
+            <div>
+              <div style="display:flex;justify-content:space-between;font-size:13px;font-weight:600;margin-bottom:6px"><span>磁盘使用率</span><span id="diskUsageDetail">--</span></div>
+              <div class="progress-bar" style="height:10px"><div class="progress-fill" id="diskBarDetail" style="width:0%;background:linear-gradient(90deg,var(--orange),#fbbf24)"></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+<!-- Overlay -->
+<div class="overlay hidden" id="overlay"><div class="spinner"></div></div>
+<!-- Modal -->
+<div class="modal-overlay hidden" id="modal"><div class="modal" id="modalContent"></div></div>
+
+<script>
+const API = location.origin;
+let TOKEN = localStorage.getItem('host_token') || '';
+let USER = null;
+let selectedFile = null;
+let ADMIN_PWD = '';
+let selectedFiles = {}; // batch selection tracking
+
+// ====== UTILS ======
+function $(id) { return document.getElementById(id); }
+function showToast(msg, type) {
+  type = type || 'info';
+  const t = $('toast');
+  t.textContent = msg;
+  t.className = 'toast ' + type;
+  setTimeout(function() { t.classList.add('show'); }, 10);
+  setTimeout(function() { t.classList.remove('show'); }, 3000);
+}
+function showLoading(v) { $('overlay').classList.toggle('hidden', !v); }
+function setProgress(p, text) {
+  $('progressWrap').classList.add('show');
+  $('progressFill').style.width = p + '%';
+  $('progressText').textContent = text || (p + '%');
+}
+function formatSize(b) {
+  if (!b) return '0 B';
+  var u = ['B', 'KB', 'MB', 'GB'];
+  var i = 0;
+  while (b >= 1024 && i < u.length - 1) { b /= 1024; i++; }
+  return b.toFixed(1) + ' ' + u[i];
+}
+function getFileIcon(name) {
+  var ext = name.split('.').pop().toLowerCase();
+  var m = { php: '🐘', html: '🌐', htm: '🌐', css: '🎨', js: '📜', zip: '🗜', apk: '📱', jpg: '🖼', jpeg: '🖼', png: '🖼', gif: '🖼', mp4: '🎬', mp3: '🎵', txt: '📝', pdf: '📄' };
+  return m[ext] || '📄';
+}
+
+// ====== v3.5.1: 浏览器指纹采集 ======
+let FINGERPRINT_CACHE = null;
+// v4.0: 使用 crypto.randomUUID() 生成安全会话ID（替代 Math.random）
+let SESSION_ID = 'sess_' + (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : (function() { var a = new Uint32Array(4); (crypto.getRandomValues || function(b) { for (var i = 0; i < b.length; i++) b[i] = Math.floor(Math.random() * 0x100000000); })(a); return a.join('-'); })());
+
+// 采集浏览器指纹
+async function collectFingerprint() {
+  try {
+    // 1. Canvas指纹
+    var canvas = document.createElement('canvas');
+    canvas.width = 200;
+    canvas.height = 50;
+    var ctx = canvas.getContext('2d');
+    ctx.textBaseline = 'top';
+    ctx.font = '14px Arial';
+    ctx.fillStyle = '#f60';
+    ctx.fillRect(0, 0, 100, 50);
+    ctx.fillStyle = '#069';
+    ctx.font = '16px Arial';
+    ctx.fillText('C4F3E2D1B0A9876', 5, 15);
+    ctx.fillStyle = 'rgba(102, 204, 0, 0.7)';
+    ctx.font = '18px Arial';
+    ctx.fillText('A1B2C3D4E5F6', 10, 30);
+    var canvasFP = canvas.toDataURL();
+
+    // 2. WebGL指纹
+    var webglInfo = '';
+    try {
+      var gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+      if (gl) {
+        var debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
+        if (debugInfo) {
+          webglInfo = gl.getParameter(debugInfo.UNMASKED_VENDOR_WEBGL) + '|' + gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL);
+        }
+        gl.getExtension('WEBGL_lose_context')?.loseContext();
+      }
+    } catch (e) { webglInfo = 'blocked'; }
+
+    // 3. 屏幕信息
+    var screenInfo = {
+      w: screen.width,
+      h: screen.height,
+      d: screen.colorDepth,
+      availW: screen.availWidth,
+      availH: screen.availHeight,
+      devicePixelRatio: window.devicePixelRatio || 1
+    };
+
+    // 4. 字体检测（通过Canvas测量）
+    var fonts = [];
+    var testFonts = ['monospace', 'serif', 'sans-serif', 'Arial', 'Helvetica', 'Times New Roman', 'Courier New', 'Verdana', 'Georgia', 'Palatino', 'Garamond', 'Bookman', 'Comic Sans MS', 'Trebuchet MS', 'Arial Black', 'Impact', 'Lucida Console', 'Tahoma', 'Courier', 'Lucida Sans Unicode', 'MS Sans Serif', 'Symbol', 'Webdings', 'Wingdings', 'Segoe UI', 'Microsoft YaHei', 'SimSun', 'SimHei', 'KaiTi', 'FangSong', 'NSimSun', 'STSong', 'STHeiti', 'STKaiti', 'STFangsong'];
+    for (var i = 0; i < testFonts.length; i++) {
+      ctx.font = '12px ' + testFonts[i];
+      var w = ctx.measureText('abcdefghijklmnopqrstuvwxyz').width;
+      if (w > 100) fonts.push(testFonts[i]);
+    }
+
+    // 5. 时区和语言
+    var timezoneInfo = {
+      tz: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      offset: new Date().getTimezoneOffset(),
+      lang: navigator.language,
+      langs: navigator.languages ? navigator.languages.join(',') : ''
+    };
+
+    // 6. 平台和硬件
+    var platformInfo = {
+      ua: navigator.userAgent,
+      platform: navigator.platform || '',
+      vendor: navigator.vendor || '',
+      cookies: navigator.cookieEnabled,
+      doNotTrack: navigator.doNotTrack || '',
+      hardwareConcurrency: navigator.hardwareConcurrency || 0,
+      deviceMemory: navigator.deviceMemory || 0,
+      maxTouchPoints: navigator.maxTouchPoints || 0
+    };
+
+    // 7. Audio指纹
+    var audioFP = '';
+    try {
+      var audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      var oscillator = audioCtx.createOscillator();
+      var analyser = audioCtx.createAnalyser();
+      var gain = audioCtx.createGain();
+      oscillator.connect(analyser);
+      analyser.connect(gain);
+      var freqArray = new Uint8Array(analyser.frequencyBinCount);
+      analyser.getByteFrequencyData(freqArray);
+      audioFP = Array.from(freqArray.slice(0, 20)).join(',');
+      oscillator.disconnect();
+      audioCtx.close();
+    } catch (e) { audioFP = 'blocked'; }
+
+    var fingerprint = {
+      canvas: canvasFP,
+      webgl: webglInfo,
+      screen: screenInfo,
+      fonts: fonts,
+      timezone: timezoneInfo,
+      platform: platformInfo,
+      audio: audioFP,
+      collectedAt: Date.now()
+    };
+    FINGERPRINT_CACHE = fingerprint;
+    return fingerprint;
+  } catch (e) {
+    console.log('[指纹] 采集失败:', e.message);
+    return null;
+  }
+}
+
+// 提交指纹到服务器
+async function submitFingerprint() {
+  if (!FINGERPRINT_CACHE) {
+    await collectFingerprint();
+  }
+  if (!FINGERPRINT_CACHE) return;
+  try {
+    var headers = { 'Content-Type': 'application/json', 'x-session-id': SESSION_ID };
+    if (TOKEN) headers['Authorization'] = 'Bearer ' + TOKEN;
+    var r = await fetch(API + '/api/v2/auth/fingerprint', {
+      method: 'POST',
+      headers: headers,
+      body: JSON.stringify({ fingerprint: FINGERPRINT_CACHE })
+    });
+    var d = await r.json();
+    if (d.blocked) {
+      showToast('设备指纹异常，请联系管理员', 'error');
+    }
+    console.log('[指纹] 提交结果:', d);
+  } catch (e) {
+    console.log('[指纹] 提交失败:', e.message);
+  }
+}
+
+// ====== v3.5.1: 鼠标轨迹追踪 ======
+var MOUSE_BUFFER = [];
+var MOUSE_TIMER = null;
+var LAST_MOUSE_POS = null;
+var MOUSE_SUBMIT_INTERVAL = 10000; // 每10秒提交一次
+
+function initMouseTracking() {
+  document.addEventListener('mousemove', function(e) {
+    var now = Date.now();
+    var speed = 0;
+    if (LAST_MOUSE_POS) {
+      var dx = e.clientX - LAST_MOUSE_POS.x;
+      var dy = e.clientY - LAST_MOUSE_POS.y;
+      var dt = now - LAST_MOUSE_POS.t;
+      if (dt > 0) speed = Math.sqrt(dx * dx + dy * dy) / dt;
+    }
+    LAST_MOUSE_POS = { x: e.clientX, y: e.clientY, t: now };
+    MOUSE_BUFFER.push({ x: e.clientX, y: e.clientY, t: now, speed: speed });
+    // 限制缓冲区大小
+    if (MOUSE_BUFFER.length > 500) MOUSE_BUFFER.splice(0, 100);
+  });
+
+  // 触摸设备支持
+  document.addEventListener('touchmove', function(e) {
+    var touch = e.touches[0];
+    if (!touch) return;
+    var now = Date.now();
+    var speed = 0;
+    if (LAST_MOUSE_POS) {
+      var dx = touch.clientX - LAST_MOUSE_POS.x;
+      var dy = touch.clientY - LAST_MOUSE_POS.y;
+      var dt = now - LAST_MOUSE_POS.t;
+      if (dt > 0) speed = Math.sqrt(dx * dx + dy * dy) / dt;
+    }
+    LAST_MOUSE_POS = { x: touch.clientX, y: touch.clientY, t: now };
+    MOUSE_BUFFER.push({ x: touch.clientX, y: touch.clientY, t: now, speed: speed });
+    if (MOUSE_BUFFER.length > 500) MOUSE_BUFFER.splice(0, 100);
+  });
+}
+
+function submitMouseData() {
+  if (MOUSE_BUFFER.length < 5) return;
+  var events = MOUSE_BUFFER.splice(0, Math.min(50, MOUSE_BUFFER.length));
+  try {
+    var headers = { 'Content-Type': 'application/json', 'x-session-id': SESSION_ID };
+    fetch(API + '/api/v2/auth/mouse-data', {
+      method: 'POST',
+      headers: headers,
+      body: JSON.stringify({ events: events, sessionId: SESSION_ID })
+    }).catch(function() {});
+  } catch (e) {}
+}
+
+// 启动鼠标追踪
+function startMouseTracking() {
+  initMouseTracking();
+  if (MOUSE_TIMER) clearInterval(MOUSE_TIMER);
+  MOUSE_TIMER = setInterval(submitMouseData, MOUSE_SUBMIT_INTERVAL);
+}
+
+// ====== THEME ======
+function initTheme() {
+  var saved = localStorage.getItem('theme') || 'light';
+  document.documentElement.setAttribute('data-theme', saved);
+}
+function toggleTheme() {
+  var current = document.documentElement.getAttribute('data-theme');
+  var next = current === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', next);
+  localStorage.setItem('theme', next);
+}
+
+// ====== TABS ======
+function switchTab(name) {
+  $('tabUser').style.display = name === 'user' ? 'block' : 'none';
+  $('tabAdmin').style.display = name === 'admin' ? 'block' : 'none';
+  $('tabBtnUser').classList.toggle('active', name === 'user');
+  $('tabBtnAdmin').classList.toggle('active', name === 'admin');
+}
+function enterAdmin() { $('loginPage').classList.add('hidden'); $('mainPage').style.display = 'block'; switchTab('admin'); }
+
+function switchAdminTab(name) {
+  ['adminOverview', 'adminUsers', 'adminCards', 'adminSecurity', 'adminSystem'].forEach(function(id) {
+    $(id).classList.toggle('hidden', id !== 'admin' + name.charAt(0).toUpperCase() + name.slice(1));
+  });
+  var tabs = document.querySelectorAll('.admin-tab');
+  var map = { overview: 0, users: 1, cards: 2, security: 3, system: 4 };
+  tabs.forEach(function(t, i) { t.classList.toggle('active', i === (map[name] || 0)); });
+  if (name === 'system') loadSystemResources();
+  if (name === 'security') loadWhitelist();
+}
+
+// ====== AUTH ======
+let REFRESH_TOKEN = localStorage.getItem('host_refresh_token') || '';
+let tokenRefreshTimer = null;
+
+// v3.5: 自动刷新Access Token（每10分钟刷新一次，因为JWT有效期15分钟）
+function startTokenRefresh() {
+  if (tokenRefreshTimer) clearInterval(tokenRefreshTimer);
+  tokenRefreshTimer = setInterval(async function() {
+    if (!REFRESH_TOKEN) return;
+    try {
+      var r = await fetch(API + '/api/v2/auth/session/refresh', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ refreshToken: REFRESH_TOKEN }) });
+      var d = await r.json();
+      if (d.token) {
+        TOKEN = d.token;
+        localStorage.setItem('host_token', TOKEN);
+        console.log('[Token] 已自动刷新');
+      }
+    } catch (e) { console.log('[Token] 刷新失败:', e.message); }
+  }, 10 * 60 * 1000);
+}
+
+async function doLogin() {
+  var u = $('loginUser').value.trim();
+  var p = $('loginPwd').value;
+  if (!u || !p) { showToast('请输入用户名和密码', 'error'); return; }
+  showLoading(true);
+  try {
+    var r = await fetch(API + '/api/v2/auth/session/init', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: u, password: p }) });
+    var d = await r.json();
+    if (d.token) {
+      TOKEN = d.token;
+      localStorage.setItem('host_token', TOKEN);
+      // v3.5: 保存Refresh Token
+      if (d.refreshToken) {
+        REFRESH_TOKEN = d.refreshToken;
+        localStorage.setItem('host_refresh_token', d.refreshToken);
+        startTokenRefresh();
+      }
+      // v3.5: 异地登录提醒
+      if (d.geoAlert) {
+        showToast(d.geoAlert.message + '（' + d.geoAlert.uniqueIPs + '个不同IP）', 'warn');
+      }
+      showToast('登录成功', 'success');
+      enterApp();
+    } else if (r.status === 423) {
+      // v3.5: 账户锁定
+      showToast(d.error || '账户已被锁定', 'error');
+    } else {
+      showToast(d.error || '登录失败', 'error');
+    }
+  } catch (e) { showToast('网络错误: ' + e.message, 'error'); }
+  showLoading(false);
+}
+
+async function doRegister() {
+  var u = $('loginUser').value.trim();
+  var p = $('loginPwd').value;
+  if (!u || !p) { showToast('请输入用户名和密码', 'error'); return; }
+  if (u.length < 2 || u.length > 20) { showToast('用户名2-20位', 'error'); return; }
+  showLoading(true);
+  try {
+    var r = await fetch(API + '/api/v2/auth/session/create', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: u, password: p }) });
+    var d = await r.json();
+    if (d.token) {
+      TOKEN = d.token;
+      localStorage.setItem('host_token', TOKEN);
+      // v3.5: 保存Refresh Token
+      if (d.refreshToken) {
+        REFRESH_TOKEN = d.refreshToken;
+        localStorage.setItem('host_refresh_token', d.refreshToken);
+        startTokenRefresh();
+      }
+      showToast('注册成功', 'success');
+      enterApp();
+    } else showToast(d.error || '注册失败', 'error');
+  } catch (e) { showToast('网络错误: ' + e.message, 'error'); }
+  showLoading(false);
+}
+
+function doLogout() {
+  // v3.5: 登出时清除Refresh Token
+  if (REFRESH_TOKEN) {
+    fetch(API + '/api/v2/auth/session/revoke', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + TOKEN }, body: JSON.stringify({ refreshToken: REFRESH_TOKEN }) }).catch(function() {});
+  }
+  localStorage.removeItem('host_token');
+  localStorage.removeItem('host_refresh_token');
+  if (tokenRefreshTimer) clearInterval(tokenRefreshTimer);
+  TOKEN = ''; REFRESH_TOKEN = ''; USER = null;
+  location.reload();
+}
+
+// ====== ENTER ======
+async function enterApp() {
+  $('loginPage').classList.add('hidden');
+  $('mainPage').style.display = 'block';
+  switchTab('user');
+  // v3.5: 如果有保存的RefreshToken，启动自动刷新
+  if (REFRESH_TOKEN) startTokenRefresh();
+  // v3.5.1: 提交浏览器指纹（携带Token关联用户）
+  submitFingerprint();
+  // v3.5.1: 启动鼠标轨迹追踪
+  startMouseTracking();
+  await loadUser();
+  await loadFiles();
+  loadUrls();
+}
+
+// ====== USER ======
+async function loadUser() {
+  if (!TOKEN) return;
+  try {
+    var r = await fetch(API + '/api/v2/user/profile/detail', { headers: { 'Authorization': 'Bearer ' + TOKEN } });
+    var d = await r.json();
+    if (d.error) {
+      // v3.5: 如果Token过期，尝试用RefreshToken刷新
+      if (r.status === 401 && REFRESH_TOKEN) {
+        try {
+          var rr = await fetch(API + '/api/v2/auth/session/refresh', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ refreshToken: REFRESH_TOKEN }) });
+          var rd = await rr.json();
+          if (rd.token) {
+            TOKEN = rd.token;
+            localStorage.setItem('host_token', TOKEN);
+            // 重试原始请求
+            r = await fetch(API + '/api/v2/user/profile/detail', { headers: { 'Authorization': 'Bearer ' + TOKEN } });
+            d = await r.json();
+            if (d.error) { showToast('登录已过期，请重新登录', 'error'); doLogout(); return; }
+          } else { showToast('登录已过期，请重新登录', 'error'); doLogout(); return; }
+        } catch (e) { showToast('登录已过期，请重新登录', 'error'); doLogout(); return; }
+      } else {
+        showToast('登录已过期，请重新登录', 'error'); doLogout(); return;
+      }
+    }
+    USER = d.user || d;
+    var u = USER;
+    $('uName').textContent = u.username || '未知';
+    $('uId').textContent = u.host_uid || '--';
+    var b = $('uBadge');
+    b.className = 'user-badge badge-' + (u.plan || 'free');
+    b.textContent = u.plan_name || '免费版';
+    $('uSpace').textContent = (u.space_used_mb || 0) + ' / ' + (u.space_limit_mb || 300) + ' MB';
+    $('openSiteBtn').href = u.host_url ? (API + u.host_url) : '#';
+    $('dashIPs').textContent = (u.known_ips || []).length;
+    $('dashFiles').textContent = u.host_files || '0';
+    $('dashSpace').textContent = u.space_used_mb || '0';
+    $('dashPlan').textContent = u.plan_name || '免费';
+    var secEl = $('secStatus');
+    if (u.banned) { secEl.className = 'sec-indicator sec-danger'; secEl.innerHTML = '<span class="sec-dot danger"></span> 账号已封禁'; }
+    else if ((u.known_ips || []).length > 5) { secEl.className = 'sec-indicator sec-warn'; secEl.innerHTML = '<span class="sec-dot warn"></span> 多IP登录，请注意安全'; }
+    else { secEl.className = 'sec-indicator sec-safe'; secEl.innerHTML = '<span class="sec-dot safe"></span> 安全状态正常'; }
+  } catch (e) { showToast('获取用户信息失败: ' + e.message, 'error'); }
+}
+
+async function loadUrls() {
+  try {
+    var r = await fetch(API + '/api/v2/server/info');
+    var d = await r.json();
+    var lines = [];
+    var uidPath = USER && USER.host_uid ? '/h/' + USER.host_uid + '/' : '/h/ID/';
+    if (d.tunnels && d.tunnels.length) d.tunnels.forEach(function(u) { lines.push(u + uidPath); });
+    else lines.push('未检测到公网隧道');
+    if (d.lan) lines.push(d.lan + uidPath + ' (局域网)');
+    $('urlList').textContent = lines.join('\n');
+  } catch (e) { $('urlList').textContent = '获取失败: ' + e.message; }
+}
+function copyUrls() {
+  var text = $('urlList').textContent;
+  if (navigator.clipboard) { navigator.clipboard.writeText(text).then(function() { showToast('已复制', 'success'); }); }
+  else showToast('手动复制即可', 'error');
+}
+
+// ====== FILES ======
+function onFileSelected(input) {
+  selectedFile = input.files[0];
+  var btn = $('uploadBtn');
+  if (selectedFile) { btn.textContent = '上传 ' + selectedFile.name; btn.disabled = false; setProgress(0, '等待上传'); }
+  else { btn.textContent = '选择文件后上传'; btn.disabled = true; $('progressWrap').classList.remove('show'); }
+}
+async function doUpload() {
+  if (!selectedFile) { showToast('请先选择文件', 'error'); return; }
+  if (!USER || !USER.host_uid) { showToast('用户信息未加载', 'error'); return; }
+  if (selectedFile.size > 50 * 1024 * 1024) { showToast('超过50MB限制', 'error'); return; }
+  var btn = $('uploadBtn'); btn.disabled = true; setProgress(10, '上传中...');
+  try {
+    var form = new FormData(); form.append('file', selectedFile);
+    var r = await fetch(API + '/api/v2/storage/files/upload/' + USER.host_uid, { method: 'POST', headers: { 'Authorization': 'Bearer ' + TOKEN }, body: form });
+    setProgress(80, '处理中...');
+    var d = await r.json();
+    setProgress(100, '完成');
+    if (d.success) {
+      showToast('上传成功', 'success');
+      selectedFile = null; $('fileInput').value = '';
+      btn.textContent = '选择文件后上传'; btn.disabled = true;
+      setTimeout(function() { $('progressWrap').classList.remove('show'); }, 1000);
+      loadFiles(); loadUser();
+    } else { showToast(d.error || '上传失败', 'error'); btn.disabled = false; }
+  } catch (e) { showToast('上传出错: ' + e.message, 'error'); btn.disabled = false; }
+}
+
+async function loadFiles() {
+  if (!USER || !USER.host_uid) return;
+  selectedFiles = {};
+  updateBatchUI();
+  try {
+    var r = await fetch(API + '/api/v2/storage/files/list/' + USER.host_uid, { headers: { 'Authorization': 'Bearer ' + TOKEN } });
+    var d = await r.json();
+    var files = d.files || [];
+    $('dashFiles').textContent = files.length;
+    renderFileList(files);
+  } catch (e) { showToast('获取文件列表失败', 'error'); }
+}
+
+function renderFileList(files) {
+  var list = $('fileList');
+  if (!files.length) { list.innerHTML = '<div class="empty-state"><div class="icon">📭</div>暂无文件</div>'; return; }
+  list.innerHTML = files.map(function(f) {
+    var icon = f.isDir ? '📁' : getFileIcon(f.name);
+    var size = f.isDir ? '文件夹' : formatSize(f.size);
+    var checkbox = f.isDir ? '' : '<input type="checkbox" class="file-checkbox" data-name="' + f.name + '" onchange="toggleFileSelect(this)" />';
+    var actions = f.isDir
+      ? '<button class="btn btn-sm btn-outline" onclick="deleteDir(\'' + f.name.replace(/'/g, "\\'") + '\')" style="color:var(--red)">删除</button>'
+      : '<button class="btn btn-sm btn-outline" onclick="previewFile(\'' + f.name.replace(/'/g, "\\'") + '\')" style="color:var(--blue)">预览</button>' +
+        '<button class="btn btn-sm btn-outline" onclick="downloadFile(\'' + f.name.replace(/'/g, "\\'") + '\')" style="color:var(--green)">下载</button>' +
+        '<button class="btn btn-sm btn-outline" onclick="renameFile(\'' + f.name.replace(/'/g, "\\'") + '\')" style="color:var(--blue)">改名</button>' +
+        '<button class="btn btn-sm btn-outline" onclick="deleteFile(\'' + f.name.replace(/'/g, "\\'") + '\')" style="color:var(--red)">删除</button>';
+    return '<div class="file-item">' + checkbox +
+      '<div class="file-icon">' + icon + '</div>' +
+      '<div class="file-info"><div class="file-name">' + f.name + (f.isDir ? '/' : '') + '</div><div class="file-meta">' + size + '</div></div>' +
+      '<div class="file-actions">' + actions + '</div></div>';
+  }).join('');
+}
+
+// ====== FILE SEARCH ======
+async function searchFiles() {
+  var q = $('fileSearchInput').value.trim();
+  if (!USER || !USER.host_uid) return;
+  if (!q) { loadFiles(); return; }
+  try {
+    var r = await fetch(API + '/api/v2/storage/files/search/' + USER.host_uid + '?q=' + encodeURIComponent(q), { headers: { 'Authorization': 'Bearer ' + TOKEN } });
+    var d = await r.json();
+    var files = d.files || [];
+    renderFileList(files);
+  } catch (e) { showToast('搜索失败: ' + e.message, 'error'); }
+}
+
+// ====== FILE SORT ======
+async function sortFiles() {
+  var val = $('fileSortSelect').value;
+  if (!USER || !USER.host_uid) return;
+  if (!val) { loadFiles(); return; }
+  var parts = val.split('_');
+  var sort = parts[0];
+  var order = parts[1] || 'asc';
+  try {
+    var r = await fetch(API + '/api/v2/storage/files/sorted/' + USER.host_uid + '?sort=' + sort + '&order=' + order, { headers: { 'Authorization': 'Bearer ' + TOKEN } });
+    var d = await r.json();
+    var files = d.files || [];
+    renderFileList(files);
+  } catch (e) { showToast('排序失败: ' + e.message, 'error'); }
+}
+
+// ====== BATCH SELECTION ======
+function toggleFileSelect(cb) {
+  var name = cb.getAttribute('data-name');
+  if (cb.checked) selectedFiles[name] = true;
+  else delete selectedFiles[name];
+  updateBatchUI();
+}
+function toggleSelectAll() {
+  var checkboxes = document.querySelectorAll('#fileList .file-checkbox');
+  var allChecked = checkboxes.length > 0 && Object.keys(selectedFiles).length === checkboxes.length;
+  checkboxes.forEach(function(cb) {
+    cb.checked = !allChecked;
+    var name = cb.getAttribute('data-name');
+    if (cb.checked) selectedFiles[name] = true;
+    else delete selectedFiles[name];
+  });
+  updateBatchUI();
+}
+function updateBatchUI() {
+  var count = Object.keys(selectedFiles).length;
+  var batchEl = $('batchActions');
+  if (count > 0) {
+    batchEl.classList.add('show');
+    $('selectedCount').textContent = '已选 ' + count + ' 项';
+  } else {
+    batchEl.classList.remove('show');
+  }
+}
+async function batchDeleteFiles() {
+  var names = Object.keys(selectedFiles);
+  if (!names.length) { showToast('请先选择文件', 'error'); return; }
+  if (!confirm('确定删除 ' + names.length + ' 个文件？此操作不可恢复！')) return;
+  if (!USER || !USER.host_uid) return;
+  showLoading(true);
+  try {
+    var r = await fetch(API + '/api/v2/storage/files/batch-remove/' + USER.host_uid, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + TOKEN }, body: JSON.stringify({ filenames: names }) });
+    var d = await r.json();
+    if (d.success) { showToast('已删除 ' + (d.deleted_count || names.length) + ' 个文件', 'success'); selectedFiles = {}; loadFiles(); loadUser(); }
+    else showToast(d.error || '批量删除失败', 'error');
+  } catch (e) { showToast('批量删除出错: ' + e.message, 'error'); }
+  showLoading(false);
+}
+
+async function deleteFile(name) {
+  if (!confirm('确定删除 ' + name + ' ?')) return;
+  try {
+    var r = await fetch(API + '/api/v2/storage/files/remove/' + USER.host_uid + '/' + encodeURIComponent(name), { method: 'POST', headers: { 'Authorization': 'Bearer ' + TOKEN } });
+    var d = await r.json();
+    if (d.success) { showToast('已删除', 'success'); loadFiles(); loadUser(); } else showToast(d.error || '删除失败', 'error');
+  } catch (e) { showToast('删除出错', 'error'); }
+}
+async function renameFile(oldName) {
+  var newName = prompt('新文件名:', oldName);
+  if (!newName || newName === oldName) return;
+  try {
+    var r = await fetch(API + '/api/v2/storage/files/rename/' + USER.host_uid + '/' + encodeURIComponent(oldName), { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + TOKEN }, body: JSON.stringify({ new_name: newName }) });
+    var d = await r.json();
+    if (d.success) { showToast('已改名', 'success'); loadFiles(); } else showToast(d.error || '改名失败', 'error');
+  } catch (e) { showToast('改名出错', 'error'); }
+}
+async function showMkdir() {
+  var name = prompt('文件夹名称:');
+  if (!name) return;
+  try {
+    var r = await fetch(API + '/api/v2/storage/files/mkdir/' + USER.host_uid, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + TOKEN }, body: JSON.stringify({ dir_name: name }) });
+    var d = await r.json();
+    if (d.success) { showToast('已创建', 'success'); loadFiles(); } else showToast(d.error || '创建失败', 'error');
+  } catch (e) { showToast('创建出错', 'error'); }
+}
+async function redeemCard() {
+  var code = $('cardCode').value.trim();
+  if (!code) { showToast('请输入卡密', 'error'); return; }
+  if (!TOKEN) { showToast('请先登录', 'error'); return; }
+  var btn = $('redeemBtn'); btn.disabled = true;
+  try {
+    var r = await fetch(API + '/api/v2/payment/redeem/exchange', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + TOKEN }, body: JSON.stringify({ code: code }) });
+    var d = await r.json();
+    if (d.success) { showToast(d.message || '兑换成功', 'success'); $('cardCode').value = ''; loadUser(); } else showToast(d.error || '兑换失败', 'error');
+  } catch (e) { showToast('兑换出错: ' + e.message, 'error'); }
+  btn.disabled = false;
+}
+function refreshAll() { loadUser(); loadFiles(); loadUrls(); showToast('已刷新', 'success'); }
+
+// Drag & drop
+(function() {
+  var zone = $('uploadZone');
+  zone.addEventListener('dragover', function(e) { e.preventDefault(); zone.classList.add('dragover'); });
+  zone.addEventListener('dragleave', function() { zone.classList.remove('dragover'); });
+  zone.addEventListener('drop', function(e) {
+    e.preventDefault(); zone.classList.remove('dragover');
+    if (e.dataTransfer.files.length) { $('fileInput').files = e.dataTransfer.files; onFileSelected($('fileInput')); }
+  });
+})();
+
+// ====== SESSION MANAGEMENT ======
+async function loadSessions() {
+  if (!TOKEN || !USER || !USER.host_uid) { showToast('请先登录', 'error'); return; }
+  try {
+    var r = await fetch(API + '/api/v2/user/sessions', { headers: { 'Authorization': 'Bearer ' + TOKEN } });
+    var d = await r.json();
+    var sessions = d.sessions || [];
+    var container = $('sessionList');
+    if (!sessions.length) { container.innerHTML = '<div class="empty-state" style="padding:16px"><div class="icon" style="font-size:24px">📱</div>暂无活跃会话</div>'; return; }
+    container.innerHTML = sessions.map(function(s) {
+      var tokenShort = (s.token || '').substring(0, 10);
+      return '<div class="session-item">' +
+        '<div style="font-size:20px;flex-shrink:0">' + (s.device === 'mobile' ? '📱' : s.device === 'desktop' ? '💻' : '🌐') + '</div>' +
+        '<div class="session-info">' +
+          '<div class="session-device">' + (s.device || '未知设备') + (s.current ? ' <span class="session-current">当前</span>' : '') + '</div>' +
+          '<div class="session-meta">IP: ' + (s.ip || '--') + ' · 登录: ' + (s.loginTime ? new Date(s.loginTime).toLocaleString() : '--') + '</div>' +
+        '</div>' +
+        '<button class="btn btn-sm btn-outline" onclick="revokeSession(\'' + (tokenShort || '') + '\')" style="color:var(--red);width:auto">撤销</button>' +
+      '</div>';
+    }).join('');
+  } catch (e) { showToast('加载会话失败: ' + e.message, 'error'); }
+}
+async function revokeSession(tokenPrefix) {
+  if (!tokenPrefix) { showToast('无效的会话', 'error'); return; }
+  if (!confirm('确定撤销此会话？该设备将被登出。')) return;
+  try {
+    var r = await fetch(API + '/api/v2/user/sessions/revoke', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + TOKEN }, body: JSON.stringify({ token_prefix: tokenPrefix }) });
+    var d = await r.json();
+    if (d.success) { showToast('会话已撤销', 'success'); loadSessions(); } else showToast(d.message || '撤销失败', 'error');
+  } catch (e) { showToast('撤销出错: ' + e.message, 'error'); }
+}
+
+// ====== ACTIVITY LOG ======
+async function loadActivityLog() {
+  if (!TOKEN || !USER || !USER.host_uid) { showToast('请先登录', 'error'); return; }
+  try {
+    var r = await fetch(API + '/api/v2/user/activity', { headers: { 'Authorization': 'Bearer ' + TOKEN } });
+    var d = await r.json();
+    var container = $('activityLog');
+    var lines = [];
+    lines.push('👤 用户名: ' + (d.username || '--'));
+    lines.push('📅 注册时间: ' + (d.registered ? new Date(d.registered).toLocaleString() : '--'));
+    lines.push('🔑 最后登录: ' + (d.lastLogin ? new Date(d.lastLogin).toLocaleString() : '--'));
+    lines.push('💎 套餐: ' + (d.planName || d.plan || '免费版'));
+    lines.push('💾 空间: ' + (d.spaceUsedMB || 0) + ' / ' + (d.spaceLimitMB || 0) + ' MB');
+    lines.push('🌐 已知IP: ' + (d.ipCount || 0) + ' 个 ' + (d.knownIPs ? d.knownIPs.join(', ') : ''));
+    lines.push('📱 活跃会话: ' + (d.sessions || 0) + ' 个');
+    lines.push('🛡️ 新用户保护: ' + (d.isNewUserGrace ? '✅ 保护中' : '❌ 已过期'));
+    lines.push('🚫 封禁状态: ' + (d.banned ? '⚠️ 已封禁 (' + (d.banReason || '违规') + ')' : '✅ 正常'));
+    container.innerHTML = lines.map(function(l) { return '<div style="padding:6px 0;font-size:12px;border-bottom:1px solid var(--border-solid)">' + l + '</div>'; }).join('');
+  } catch (e) { showToast('加载活动日志失败: ' + e.message, 'error'); }
+}
+
+// ====== ADMIN ======
+function adminLogin() {
+  var p = $('adminPwd').value.trim();
+  if (!p) { showToast('请输入管理密码', 'error'); return; }
+  ADMIN_PWD = p;
+  loadStats(); loadUsers(); loadCards();
+  $('loginCard').classList.add('hidden');
+  $('dashboard').classList.remove('hidden');
+  switchAdminTab('overview');
+}
+async function loadStats() {
+  try {
+    var r = await fetch(API + '/api/v2/sys/management/stats/overview?admin_password=' + ADMIN_PWD), d = await r.json();
+    if (d.error) { showToast(d.error, 'error'); return; }
+    $('totalUsers').textContent = d.total_users || 0;
+    $('totalFiles').textContent = d.total_files || 0;
+    $('totalBans').textContent = (d.banned_users || 0) + '/' + (d.blocked_ips || 0);
+    $('totalCards').textContent = d.total_cards || 0;
+    var logs = d.attack_logs || [];
+    $('firewallLogs').textContent = logs.length ? logs.map(function(l) { return '[' + (l.time ? l.time.slice(0, 19) : '-') + '] ' + l.type + ' | ' + l.ip + ' | ' + l.detail; }).join('\n') : '暂无日志';
+    // Load system resources in overview
+    loadSystemResources();
+  } catch (e) { showToast('请求失败: ' + e.message, 'error'); }
+}
+async function loadUsers() {
+  try {
+    var r = await fetch(API + '/api/v2/sys/management/users/list?admin_password=' + ADMIN_PWD), d = await r.json();
+    if (!Array.isArray(d)) return;
+    var tbody = document.querySelector('#usersTable tbody');
+    tbody.innerHTML = d.map(function(u) {
+      var planClass = u.plan === 'pro' ? 'badge-pro' : u.plan === 'basic' ? 'badge-basic' : 'badge-free';
+      var planName = u.plan === 'pro' ? '高级' : u.plan === 'basic' ? '基础' : '免费';
+      var banTag = u.banned ? '<span class="badge-sm badge-danger">已封禁</span>' : '';
+      var actionBtn = u.banned
+        ? '<button class="btn btn-sm btn-outline" style="color:var(--green)" onclick="unbanUser(\'' + u.username + '\')">解封</button>'
+        : '<button class="btn btn-sm btn-outline" style="color:var(--red)" onclick="banUserByName(\'' + u.username + '\')">封禁</button>';
+      return '<tr><td><b>' + u.username + '</b>' + banTag + '</td><td><span class="badge-sm" style="background:' + (u.plan === 'pro' ? 'var(--accent-light)' : u.plan === 'basic' ? 'var(--green-bg)' : 'var(--input-bg)') + ';color:' + (u.plan === 'pro' ? 'var(--accent)' : u.plan === 'basic' ? 'var(--green)' : 'var(--text3)') + '">' + planName + '</span></td><td>' + (u.space_used_mb || 0) + 'MB</td><td>' + ((u.known_ips || []).length) + '</td><td>' + (u.banned ? '<span style="color:var(--red)">已封禁</span>' : '<span style="color:var(--green)">正常</span>') + '</td><td>' + actionBtn + '</td></tr>';
+    }).join('');
+  } catch (e) { showToast('请求失败: ' + e.message, 'error'); }
+}
+async function generateCards() {
+  var plan = $('cardPlan').value, count = parseInt($('cardCount').value) || 1;
+  try {
+    var r = await fetch(API + '/api/v2/sys/management/cards/generate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ admin_password: ADMIN_PWD, plan: plan, count: count }) }), d = await r.json();
+    if (d.success) {
+      $('newCards').innerHTML = '<div style="color:var(--green);margin-bottom:6px;font-size:13px;font-weight:600">生成成功，请保存：</div>' + d.codes.map(function(c) { return '<div class="code-box">' + c.code + '</div>'; }).join('');
+      loadCards(); loadStats();
+    } else showToast(d.error || '生成失败', 'error');
+  } catch (e) { showToast('网络错误', 'error'); }
+}
+async function loadCards() {
+  try {
+    var r = await fetch(API + '/api/v2/sys/management/cards/list?admin_password=' + ADMIN_PWD), d = await r.json();
+    if (!Array.isArray(d)) return;
+    var tbody = document.querySelector('#cardsTable tbody');
+    tbody.innerHTML = d.map(function(c) {
+      var status = c.used ? '<span class="badge-sm badge-danger">已使用</span>' : '<span class="badge-sm badge-success">未使用</span>';
+      return '<tr><td>' + c.code + '</td><td>' + c.plan + '</td><td>' + status + '</td><td>' + (c.used_by || '-') + '</td><td>' + (c.used_at ? c.used_at.slice(0, 16).replace('T', ' ') : '-') + '</td></tr>';
+    }).join('');
+  } catch (e) { showToast('请求失败: ' + e.message, 'error'); }
+}
+async function banUser() {
+  var username = $('banUserInput').value.trim(), reason = $('banReasonInput').value.trim() || '违规';
+  if (!username) { showToast('请输入用户名', 'error'); return; }
+  if (!confirm('确定封禁 ' + username + ' ？\n封禁后该账号所有关联IP将被阻止。')) return;
+  try {
+    var r = await fetch(API + '/api/v2/sys/management/ban/user', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ admin_password: ADMIN_PWD, username: username, reason: reason }) }), d = await r.json();
+    if (d.success) { showToast(d.message, 'success'); loadUsers(); loadStats(); } else showToast(d.error || '封禁失败', 'error');
+  } catch (e) { showToast('网络错误', 'error'); }
+}
+async function banUserByName(username) {
+  if (!confirm('确定封禁 ' + username + ' ?')) return;
+  try {
+    var r = await fetch(API + '/api/v2/sys/management/ban/user', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ admin_password: ADMIN_PWD, username: username, reason: '违规' }) }), d = await r.json();
+    if (d.success) { showToast(d.message, 'success'); loadUsers(); loadStats(); } else showToast(d.error || '封禁失败', 'error');
+  } catch (e) { showToast('网络错误', 'error'); }
+}
+async function unbanUser(username) {
+  if (!confirm('确定解封 ' + username + ' ?')) return;
+  try {
+    var r = await fetch(API + '/api/v2/sys/management/unban/user', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ admin_password: ADMIN_PWD, username: username }) }), d = await r.json();
+    if (d.success) { showToast(d.message, 'success'); loadUsers(); loadStats(); } else showToast(d.error || '解封失败', 'error');
+  } catch (e) { showToast('网络错误', 'error'); }
+}
+
+// ====== PASSWORD CHANGE ======
+function showPwdModal() {
+  var html = '<h3>修改密码</h3>' +
+    '<div class="input-group"><label>旧密码</label><input type="password" class="input" id="oldPwd" placeholder="输入旧密码"></div>' +
+    '<div class="input-group"><label>新密码</label><input type="password" class="input" id="newPwd" placeholder="4-32位新密码"></div>' +
+    '<div class="modal-actions"><button class="btn btn-secondary" onclick="closeModal()">取消</button><button class="btn btn-primary" onclick="changePwd()">确认修改</button></div>';
+  $('modalContent').innerHTML = html; $('modal').classList.remove('hidden');
+}
+function closeModal() { $('modal').classList.add('hidden'); }
+async function changePwd() {
+  var oldPwd = $('oldPwd').value, newPwd = $('newPwd').value;
+  if (!oldPwd || !newPwd) { showToast('请填写完整', 'error'); return; }
+  if (newPwd.length < 4) { showToast('新密码至少4位', 'error'); return; }
+  showLoading(true);
+  try {
+    var r = await fetch(API + '/api/v2/user/profile/password', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + TOKEN }, body: JSON.stringify({ old_password: oldPwd, new_password: newPwd }) });
+    var d = await r.json();
+    if (d.success) { showToast('密码修改成功', 'success'); closeModal(); } else showToast(d.error || '修改失败', 'error');
+  } catch (e) { showToast('网络错误: ' + e.message, 'error'); }
+  showLoading(false);
+}
+
+// ====== DELETE FOLDER ======
+async function deleteDir(name) {
+  if (!confirm('确定删除文件夹 ' + name + ' 及其所有内容？此操作不可恢复！')) return;
+  try {
+    var r = await fetch(API + '/api/v2/storage/files/rmdir/' + USER.host_uid, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + TOKEN }, body: JSON.stringify({ dir_name: name }) });
+    var d = await r.json();
+    if (d.success) { showToast('文件夹已删除', 'success'); loadFiles(); loadUser(); } else showToast(d.error || '删除失败', 'error');
+  } catch (e) { showToast('删除出错', 'error'); }
+}
+
+// ====== FILE PREVIEW ======
+async function previewFile(name) {
+  showLoading(true);
+  try {
+    var r = await fetch(API + '/api/v2/storage/files/preview/' + USER.host_uid + '/' + encodeURIComponent(name), { headers: { 'Authorization': 'Bearer ' + TOKEN } });
+    if (r.headers.get('content-type') && r.headers.get('content-type').indexOf('image/') !== -1) {
+      var blob = await r.blob();
+      var url = URL.createObjectURL(blob);
+      var html = '<h3>📷 ' + name + '</h3><div style="text-align:center;margin:12px 0"><img src="' + url + '" style="max-width:100%;max-height:60vh;border-radius:8px" onload="URL.revokeObjectURL(\'' + url + '\')"></div><div class="modal-actions"><button class="btn btn-secondary" onclick="closeModal()">关闭</button></div>';
+      $('modalContent').innerHTML = html; $('modal').classList.remove('hidden');
+    } else {
+      var d = await r.json();
+      if (d.type === 'text') {
+        var html = '<h3>📄 ' + name + ' <span style="font-size:12px;color:var(--text3);font-weight:400">' + (d.size ? formatSize(d.size) : '') + '</span></h3><div class="log-box" style="max-height:55vh;overflow:auto;font-size:11px;line-height:1.6">' + d.content.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</div><div class="modal-actions"><button class="btn btn-secondary" onclick="closeModal()">关闭</button></div>';
+        $('modalContent').innerHTML = html; $('modal').classList.remove('hidden');
+      } else {
+        showToast(d.message || '不支持预览此文件类型', 'error');
+      }
+    }
+  } catch (e) { showToast('预览失败: ' + e.message, 'error'); }
+  showLoading(false);
+}
+
+// ====== FILE DOWNLOAD ======
+function downloadFile(name) {
+  var url = API + '/api/v2/storage/files/download/' + USER.host_uid + '/' + encodeURIComponent(name);
+  showToast('正在下载...', 'success');
+  fetch(url, { headers: { 'Authorization': 'Bearer ' + TOKEN } }).then(function(r) { return r.blob(); }).then(function(blob) {
+    var blobUrl = URL.createObjectURL(blob);
+    var a = document.createElement('a'); a.href = blobUrl; a.download = name; a.click();
+    URL.revokeObjectURL(blobUrl);
+  }).catch(function(e) { showToast('下载失败: ' + e.message, 'error'); });
+}
+
+// ====== SPACE CLEANUP ======
+function showCleanupModal() {
+  var html = '<h3>🗑️ 清理空间</h3>' +
+    '<p style="font-size:13px;color:var(--text2);margin-bottom:14px">⚠️ 此操作将删除你的所有文件和文件夹，不可恢复！</p>' +
+    '<div class="input-group"><label>输入密码确认</label><input type="password" class="input" id="cleanupPwd" placeholder="输入密码"></div>' +
+    '<div class="modal-actions"><button class="btn btn-secondary" onclick="closeModal()">取消</button><button class="btn btn-red" onclick="cleanupSpace()">确认清理</button></div>';
+  $('modalContent').innerHTML = html; $('modal').classList.remove('hidden');
+}
+async function cleanupSpace() {
+  var pwd = $('cleanupPwd').value;
+  if (!pwd) { showToast('请输入密码', 'error'); return; }
+  showLoading(true); closeModal();
+  try {
+    var r = await fetch(API + '/api/v2/storage/files/cleanup/' + USER.host_uid, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + TOKEN }, body: JSON.stringify({ password: pwd }) });
+    var d = await r.json();
+    if (d.success) { showToast(d.message || '空间已清理', 'success'); loadFiles(); loadUser(); } else showToast(d.error || '清理失败', 'error');
+  } catch (e) { showToast('清理出错: ' + e.message, 'error'); }
+  showLoading(false);
+}
+
+// ====== DELETE ACCOUNT ======
+async function deleteAccount() {
+  var pwd = prompt('⚠️ 此操作将永久删除你的账号和所有文件！\n输入密码确认:');
+  if (!pwd) return;
+  showLoading(true);
+  try {
+    var r = await fetch(API + '/api/v2/user/profile/delete', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + TOKEN }, body: JSON.stringify({ password: pwd }) });
+    var d = await r.json();
+    if (d.success) { showToast('账号已删除', 'success'); setTimeout(function() { doLogout(); }, 1500); } else showToast(d.error || '删除失败', 'error');
+  } catch (e) { showToast('网络错误: ' + e.message, 'error'); }
+  showLoading(false);
+}
+
+// ====== IP MANAGEMENT ======
+async function loadBlockedIPs() {
+  if (!ADMIN_PWD) { showToast('请先登录管理后台', 'error'); return; }
+  try {
+    var r = await fetch(API + '/api/v2/sys/management/ips/blocked?admin_password=' + ADMIN_PWD);
+    var d = await r.json();
+    if (d.error) { showToast(d.error, 'error'); return; }
+    var lines = [];
+    if (d.persistent_blocked && d.persistent_blocked.length) {
+      lines.push('=== 持久封禁 (' + d.persistent_blocked.length + ') ===');
+      d.persistent_blocked.forEach(function(b) { lines.push('🚫 ' + b.ip + ' | ' + b.reason + ' | 过期: ' + new Date(b.expireAt).toLocaleString()); });
+    }
+    if (d.memory_blocked && d.memory_blocked.length) {
+      lines.push('=== 内存封禁 (' + d.memory_blocked.length + ') ===');
+      d.memory_blocked.forEach(function(b) { lines.push('⛔ ' + b.ip); });
+    }
+    $('blockedIPs').textContent = lines.length ? lines.join('\n') : '暂无封禁IP';
+  } catch (e) { $('blockedIPs').textContent = '加载失败: ' + e.message; }
+}
+async function unbanIP() {
+  var ip = $('unbanIP').value.trim();
+  if (!ip) { showToast('请输入IP', 'error'); return; }
+  if (!ADMIN_PWD) { showToast('请先登录管理后台', 'error'); return; }
+  try {
+    var r = await fetch(API + '/api/v2/sys/management/ips/unban', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ admin_password: ADMIN_PWD, ip: ip }) });
+    var d = await r.json();
+    if (d.success) { showToast(d.message, 'success'); $('unbanIP').value = ''; loadBlockedIPs(); loadStats(); } else showToast(d.message || '解封失败', 'error');
+  } catch (e) { showToast('网络错误', 'error'); }
+}
+async function clearAllBans() {
+  if (!confirm('⚠️ 确定清除所有封禁IP？此操作不可撤销！')) return;
+  if (!ADMIN_PWD) { showToast('请先登录管理后台', 'error'); return; }
+  try {
+    var r = await fetch(API + '/api/v2/sys/management/ips/blocked?admin_password=' + ADMIN_PWD);
+    var d = await r.json();
+    if (d.error) { showToast(d.error, 'error'); return; }
+    var count = 0;
+    var allIPs = [];
+    if (d.persistent_blocked) d.persistent_blocked.forEach(function(b) { allIPs.push(b.ip); });
+    if (d.memory_blocked) d.memory_blocked.forEach(function(b) { allIPs.push(b.ip); });
+    for (var i = 0; i < allIPs.length; i++) {
+      try {
+        var ur = await fetch(API + '/api/v2/sys/management/ips/unban', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ admin_password: ADMIN_PWD, ip: allIPs[i] }) });
+        var ud = await ur.json();
+        if (ud.success) count++;
+      } catch (e) {}
+    }
+    showToast('已清除 ' + count + ' 个封禁IP', 'success'); loadBlockedIPs(); loadStats();
+  } catch (e) { showToast('清除失败: ' + e.message, 'error'); }
+}
+
+// ====== IP REPUTATION ======
+async function loadIPReputation() {
+  if (!ADMIN_PWD) { showToast('请先登录管理后台', 'error'); return; }
+  try {
+    var r = await fetch(API + '/api/v2/sys/management/ips/reputation?admin_password=' + ADMIN_PWD);
+    var d = await r.json();
+    if (d.error) { showToast(d.error, 'error'); return; }
+    var lines = [];
+    if (d.low_reputation && d.low_reputation.length) {
+      lines.push('⚠️ 低信誉IP (' + d.low_reputation.length + '/' + d.total + ')：');
+      d.low_reputation.forEach(function(item) {
+        var repClass = item.score <= 20 ? '🔴' : item.score <= 40 ? '🟠' : '🟡';
+        lines.push(repClass + ' ' + item.ip + ' | 信誉:' + item.score + ' | 关联封禁用户:' + item.bannedUsers.join(','));
+      });
+    } else {
+      lines.push('✅ 暂无低信誉IP');
+    }
+    lines.push('---');
+    lines.push('总计追踪IP: ' + d.total);
+    $('ipReputation').textContent = lines.join('\n');
+  } catch (e) { $('ipReputation').textContent = '加载失败: ' + e.message; }
+}
+
+// ====== IP WHITELIST ======
+async function loadWhitelist() {
+  if (!ADMIN_PWD) { showToast('请先登录管理后台', 'error'); return; }
+  try {
+    var r = await fetch(API + '/api/v2/sys/management/ips/whitelist?admin_password=' + ADMIN_PWD);
+    var d = await r.json();
+    if (d.error) { showToast(d.error, 'error'); return; }
+    var ips = d.whitelist || d.ips || [];
+    var lines = [];
+    if (ips.length) {
+      lines.push('=== 白名单 IP (' + ips.length + ') ===');
+      ips.forEach(function(ip) { lines.push('✅ ' + (typeof ip === 'string' ? ip : (ip.ip || ip.address || JSON.stringify(ip)))); });
+    } else {
+      lines.push('暂无白名单 IP');
+    }
+    $('whitelistBox').textContent = lines.join('\n');
+  } catch (e) { $('whitelistBox').textContent = '加载失败: ' + e.message; }
+}
+async function addWhitelistIP() {
+  var ip = $('whitelistIP').value.trim();
+  if (!ip) { showToast('请输入IP地址', 'error'); return; }
+  if (!ADMIN_PWD) { showToast('请先登录管理后台', 'error'); return; }
+  try {
+    var r = await fetch(API + '/api/v2/sys/management/ips/whitelist/add', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ admin_password: ADMIN_PWD, ip: ip }) });
+    var d = await r.json();
+    if (d.success) { showToast('已添加白名单: ' + ip, 'success'); $('whitelistIP').value = ''; loadWhitelist(); } else showToast(d.error || '添加失败', 'error');
+  } catch (e) { showToast('添加出错: ' + e.message, 'error'); }
+}
+
+// ====== BEHAVIOR SCORE ======
+async function queryBehaviorScore() {
+  var ip = $('behaviorUserInput').value.trim();
+  if (!ip) { showToast('请输入IP地址', 'error'); return; }
+  if (!ADMIN_PWD) { showToast('请先登录管理后台', 'error'); return; }
+  try {
+    var r = await fetch(API + '/api/v2/sys/management/ips/behavior?admin_password=' + ADMIN_PWD + '&ip=' + encodeURIComponent(ip));
+    var d = await r.json();
+    if (d.error) { $('behaviorResult').innerHTML = '<span style="color:var(--red)">' + d.error + '</span>'; return; }
+    if (!d.found) { $('behaviorResult').innerHTML = '<span style="color:var(--text3)">该IP无行为记录</span>'; return; }
+    var score = d.score || 0;
+    var color = score >= 80 ? 'var(--green)' : score >= 50 ? 'var(--orange)' : 'var(--red)';
+    var level = score >= 80 ? '良好' : score >= 50 ? '一般' : '危险';
+    var detail = '请求: ' + (d.totalRequests || 0) + ' · 可疑: ' + (d.suspiciousActions || 0);
+    $('behaviorResult').innerHTML = '<div class="rep-gauge"><span style="font-size:12px;font-weight:600">行为评分</span><div class="rep-bar"><div class="rep-fill" style="width:' + score + '%;background:' + color + '"></div></div><div class="rep-score" style="color:' + color + '">' + score + '</div></div><div style="margin-top:8px;font-size:12px">评分等级: <span style="color:' + color + ';font-weight:600">' + level + '</span> · ' + detail + '</div>';
+  } catch (e) { $('behaviorResult').innerHTML = '<span style="color:var(--red)">查询失败: ' + e.message + '</span>'; }
+}
+
+// ====== SYSTEM RESOURCES ======
+async function loadSystemResources() {
+  if (!ADMIN_PWD) return;
+  try {
+    var r = await fetch(API + '/api/v2/sys/resources?admin_password=' + ADMIN_PWD);
+    var d = await r.json();
+    if (d.error) { return; }
+    var cpu = d.cpu?.loadAvg ? (d.cpu.loadAvg[0] * 100 / d.cpu.cores).toFixed(1) : 0;
+    var mem = d.memory?.usagePercent || 0;
+    var disk = d.disk?.usagePercent || '--';
+
+    // Overview cards
+    if ($('cpuUsage')) { $('cpuUsage').textContent = cpu + '%'; }
+    if ($('memUsage')) { $('memUsage').textContent = mem + '%'; }
+    if ($('cpuBar')) { $('cpuBar').style.width = Math.min(100, cpu) + '%'; }
+    if ($('memBar')) { $('memBar').style.width = mem + '%'; }
+
+    // Detail section
+    if ($('cpuUsageDetail')) { $('cpuUsageDetail').textContent = cpu + '%'; }
+    if ($('memUsageDetail')) { $('memUsageDetail').textContent = mem + '%'; }
+    if ($('diskUsageDetail')) { $('diskUsageDetail').textContent = disk + '%'; }
+    if ($('cpuBarDetail')) { $('cpuBarDetail').style.width = Math.min(100, cpu) + '%'; }
+    if ($('memBarDetail')) { $('memBarDetail').style.width = mem + '%'; }
+    if ($('diskBarDetail')) { $('diskBarDetail').style.width = '0%'; }
+  } catch (e) { /* silent */ }
+}
+
+// ====== INIT ======
+(function init() {
+  initTheme();
+  // v3.5.1: 预采集浏览器指纹（登录前缓存，登录后自动关联）
+  collectFingerprint();
+  if (TOKEN) {
+    (async function() {
+      try { await loadUser(); if (USER) { enterApp(); return; } } catch (e) {}
+      localStorage.removeItem('host_token'); TOKEN = '';
+      $('loginPage').classList.remove('hidden');
+      showToast('登录已过期', 'error');
+    })();
+  } else {
+    $('loginPage').classList.remove('hidden');
+  }
+})();
+</script>
+</body>
+</html>
