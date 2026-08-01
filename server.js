@@ -33,7 +33,7 @@ if (!ADMIN_PASSWORD) {
   console.error('[安全] 警告：未设置 ADMIN_PASSWORD 环境变量，使用随机密码');
   console.error('[安全] 请在启动前设置: export ADMIN_PASSWORD="你的管理密码"');
 }
-const ACTUAL_ADMIN_PASSWORD = ADMIN_PASSWORD || (() => { const rp = crypto.randomBytes(16).toString('hex'); console.error(`[安全] 随机密码: ${rp}`); console.error('[安全] 下次启动请设置: export ADMIN_PASSWORD="你的密码"'); return rp; })();
+const ACTUAL_ADMIN_PASSWORD = ADMIN_PASSWORD || (() => { const rp = crypto.randomBytes(16).toString('hex'); console.error('[安全] 随机密码: ${rp}'); console.error('[安全] 下次启动请设置: export ADMIN_PASSWORD="你的密码"'); return rp; })();
 const HMAC_SECRET = crypto.createHash('sha256').update(JWT_SECRET + 'hmac').digest();
 const REFRESH_SECRET = crypto.createHash('sha256').update(JWT_SECRET + 'refresh').digest();
 const HOSTS_DIR = path.join(__dirname, 'hosts');
@@ -177,7 +177,7 @@ class SecurityModule {
     const ip = getClientIP(req);
     const userId = req.user?.id || 'anon';
     const deviceId = req.headers['x-device-id'] || 'unknown';
-    return `${ip}:${userId}:${deviceId}`;
+    return '${ip}:${userId}:${deviceId}';
   }
 
   isWhitelisted(ip) {
@@ -199,17 +199,12 @@ class SecurityModule {
     return true;
   }
 
-  // ⚠️ 修复：不再自动封禁 IP，只记录日志
   blockIP(ip, reason, durationMs) {
     const now = Date.now();
-    console.log(`[安全-仅记录] IP: ${ip}, 原因: ${reason}, 时长: ${durationMs}ms`);
-    // 不真正封禁，只记录到行为日志
+    console.log('[安全-仅记录] IP: ${ip}, 原因: ${reason}, 时长: ${durationMs}ms');
     if (!DB.ipBehavior[ip]) DB.ipBehavior[ip] = { score: 100, events: [], lastSeen: now };
     DB.ipBehavior[ip].events.push({ time: new Date().toISOString(), reason, action: 'blocked_but_not_applied' });
     DB.ipBehavior[ip].score = Math.max(DB.ipBehavior[ip].score - 5, 0);
-    // 如果确实要封禁，改下面的逻辑
-    // DB.blockedIPs[ip] = { time: now, reason, until: now + durationMs };
-    // saveBlocked();
   }
 
   isBlocked(ip) {
@@ -273,12 +268,10 @@ app.get('/admin.html', (req, res) => res.redirect('/panel.html'));
 app.use((req, res, next) => {
   const ip = req.headers['cf-connecting-ip'] || req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.headers['x-real-ip'] || req.socket.remoteAddress?.replace('::ffff:', '') || '127.0.0.1';
 
-  // 已封禁 IP
   if (security.isBlocked(ip)) {
     return res.status(403).end();
   }
 
-  // 攻击模式
   if (security.attackMode && !security.isWhitelisted(ip)) {
     const p = req.path.toLowerCase();
     if (!p.startsWith('/api/v2/auth/') && !p.startsWith('/api/v2/gateway/health')) {
@@ -286,7 +279,6 @@ app.use((req, res, next) => {
     }
   }
 
-  // 已知扫描器 UA
   const ua = (req.headers['user-agent'] || '').toLowerCase();
   const scannerPatterns = [
     'zgrab', 'masscan', 'nmap', 'nessus', 'burp', 'sqlmap', 'nikto',
@@ -302,7 +294,6 @@ app.use((req, res, next) => {
     return res.status(403).end();
   }
 
-  // 根路径高频扫描
   const path = req.path.toLowerCase();
   if (path === '/' || path === '') {
     const rk = 'root:' + ip;
@@ -326,7 +317,7 @@ app.use(cors({ origin: true, credentials: true, methods: ['GET', 'POST', 'PUT', 
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// CSP 头（仅对 API 和管理页面）
+// CSP 头
 app.use((req, res, next) => {
   res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' ws: wss:; font-src 'self'; frame-src 'none'; object-src 'none'; base-uri 'self'; form-action 'self'");
   res.setHeader('X-Content-Type-Options', 'nosniff');
@@ -370,20 +361,17 @@ app.use((req, res, next) => {
 
   if (security.attackMode && !security.isWhitelisted(ip)) {
     if (path.startsWith('/api/v2/auth/') || path.startsWith('/api/v2/gateway/health')) {
-      // 允许登录和健康检查
     } else {
       return res.status(503).json({ error: '服务暂时不可用' });
     }
   }
 
-  // 蜜罐检测
   if (security.isHoneypot(path)) {
     security.updateBehaviorScore(ip, 'honeypot');
     security.blockIP(ip, '蜜罐触发', 24 * 60 * 60 * 1000);
     return res.status(403).json({ error: '请求被拒绝' });
   }
 
-  // 频率限制
   if (!security.checkRateLimit(req)) {
     security.updateBehaviorScore(ip, 'rate_limit');
     return res.status(429).json({ error: '请求过于频繁' });
@@ -445,13 +433,13 @@ app.post('/api/v2/auth/session/create', (req, res) => {
     DB.refreshTokens[refreshToken] = { userId: uid, username: uname, createdAt: Date.now() };
 
     saveDB();
-    logAudit('register', ip, `用户注册: ${uname}`);
+    logAudit('register', ip, '用户注册: ${uname}');
 
     res.json({
       success: true,
       token,
       refreshToken,
-      host: { uid, password: hostPassword, url: `/h/${uid}/` }
+      host: { uid, password: hostPassword, url: '/h/${uid}/' }
     });
   } catch (e) {
     console.error('[注册]', e.message);
@@ -474,7 +462,7 @@ app.post('/api/v2/auth/session/init', (req, res) => {
     if (user.banned) return res.status(403).json({ error: '账户已被封禁', reason: user.banReason });
 
     if (!verifyPasswordBcrypt(password, user.password)) {
-      logAudit('login_failed', ip, `登录失败: ${uname}`);
+      logAudit('login_failed', ip, '登录失败: ${uname}');
       return res.status(401).json({ error: '用户名或密码错误' });
     }
 
@@ -486,7 +474,7 @@ app.post('/api/v2/auth/session/init', (req, res) => {
     DB.refreshTokens[refreshToken] = { userId: user.id, username: uname, createdAt: Date.now() };
 
     saveDB();
-    logAudit('login', ip, `用户登录: ${uname}`);
+    logAudit('login', ip, '用户登录: ${uname}');
 
     res.json({ token, refreshToken, user: { id: user.id, username: user.username, plan: user.plan, planName: user.planName } });
   } catch (e) {
@@ -510,7 +498,7 @@ app.post('/api/v2/auth/session/authenticate', (req, res) => {
     if (user.banned) return res.status(403).json({ error: '账户已被封禁', reason: user.banReason });
 
     if (!verifyPasswordBcrypt(password, user.password)) {
-      logAudit('login_failed', ip, `登录失败: ${uname}`);
+      logAudit('login_failed', ip, '登录失败: ${uname}');
       return res.status(401).json({ error: '用户名或密码错误' });
     }
 
@@ -522,7 +510,7 @@ app.post('/api/v2/auth/session/authenticate', (req, res) => {
     DB.refreshTokens[refreshToken] = { userId: user.id, username: uname, createdAt: Date.now() };
 
     saveDB();
-    logAudit('login', ip, `用户登录: ${uname}`);
+    logAudit('login', ip, '用户登录: ${uname}');
 
     res.json({
       success: true,
@@ -534,6 +522,28 @@ app.post('/api/v2/auth/session/authenticate', (req, res) => {
     console.error('[登录]', e.message);
     res.status(500).json({ error: '服务器内部错误' });
   }
+});
+
+// 指纹采集
+app.post('/api/v2/auth/fingerprint', (req, res) => {
+  const ip = getClientIP(req);
+  DB.fingerprints[ip] = req.body;
+  res.json({ success: true });
+});
+
+// 鼠标数据采集
+app.post('/api/v2/auth/mouse-data', (req, res) => {
+  const ip = getClientIP(req);
+  DB.mouseData[ip] = req.body;
+  res.json({ success: true });
+});
+
+// 撤销认证会话
+app.post('/api/v2/auth/session/revoke', (req, res) => {
+  const { refreshToken } = req.body;
+  if (refreshToken) delete DB.refreshTokens[refreshToken];
+  saveDB();
+  res.json({ success: true });
 });
 
 // Token 刷新
@@ -548,7 +558,6 @@ app.post('/api/v2/auth/session/refresh', (req, res) => {
     const user = DB.users[decoded.username];
     if (!user) return res.status(401).json({ error: '用户不存在' });
 
-    // Token 轮换：旧 token 作废
     delete DB.refreshTokens[refreshToken];
 
     const newToken = jwt.sign({ id: user.id, username: user.username, plan: user.plan }, JWT_SECRET, { expiresIn: TOKEN_EXPIRY });
@@ -579,7 +588,7 @@ function authMiddleware(req, res, next) {
   }
 }
 
-// HMAC 中间件（兼容 GET query 和 POST body）
+// HMAC 中间件
 function hmacMiddleware(req, res, next) {
   const admin_password = req.body?.admin_password || req.query?.admin_password;
   if (admin_password && verifyAdmin(admin_password)) {
@@ -675,6 +684,294 @@ app.get('/api/v2/user/sessions', authMiddleware, (req, res) => {
   res.json({ success: true, sessions: [] });
 });
 
+// ============ 存储 API ============
+
+// 文件列表
+app.get('/api/v2/storage/files/list/:uid', authMiddleware, (req, res) => {
+  const { uid } = req.params;
+  const host = DB.hosts[uid];
+  if (!host) return res.status(404).json({ error: '主机不存在' });
+  const hostDir = path.join(HOSTS_DIR, uid);
+  if (!fs.existsSync(hostDir)) return res.json({ files: [], folders: [] });
+  const entries = fs.readdirSync(hostDir, { withFileTypes: true });
+  const files = [];
+  const folders = [];
+  entries.forEach(e => {
+    const stat = fs.statSync(path.join(hostDir, e.name));
+    if (e.isDirectory()) {
+      folders.push({ name: e.name, size: 0, type: 'folder', mtime: stat.mtime.toISOString() });
+    } else {
+      files.push({ name: e.name, size: stat.size, type: path.extname(e.name).replace('.', '') || 'unknown', mtime: stat.mtime.toISOString() });
+    }
+  });
+  res.json({ files, folders });
+});
+
+// 文件搜索
+app.get('/api/v2/storage/files/search/:uid', authMiddleware, (req, res) => {
+  const { uid } = req.params;
+  const q = (req.query.q || '').toLowerCase();
+  const host = DB.hosts[uid];
+  if (!host) return res.status(404).json({ error: '主机不存在' });
+  const hostDir = path.join(HOSTS_DIR, uid);
+  if (!fs.existsSync(hostDir)) return res.json({ files: [], folders: [] });
+  const entries = fs.readdirSync(hostDir, { withFileTypes: true });
+  const files = [];
+  const folders = [];
+  entries.forEach(e => {
+    if (!e.name.toLowerCase().includes(q)) return;
+    const stat = fs.statSync(path.join(hostDir, e.name));
+    if (e.isDirectory()) {
+      folders.push({ name: e.name, size: 0, type: 'folder', mtime: stat.mtime.toISOString() });
+    } else {
+      files.push({ name: e.name, size: stat.size, type: path.extname(e.name).replace('.', '') || 'unknown', mtime: stat.mtime.toISOString() });
+    }
+  });
+  res.json({ files, folders });
+});
+
+// 文件排序
+app.get('/api/v2/storage/files/sorted/:uid', authMiddleware, (req, res) => {
+  const { uid } = req.params;
+  const sort = req.query.sort || 'name';
+  const order = req.query.order || 'asc';
+  const host = DB.hosts[uid];
+  if (!host) return res.status(404).json({ error: '主机不存在' });
+  const hostDir = path.join(HOSTS_DIR, uid);
+  if (!fs.existsSync(hostDir)) return res.json({ files: [], folders: [] });
+  const entries = fs.readdirSync(hostDir, { withFileTypes: true });
+  const files = [];
+  const folders = [];
+  entries.forEach(e => {
+    const stat = fs.statSync(path.join(hostDir, e.name));
+    if (e.isDirectory()) {
+      folders.push({ name: e.name, size: 0, type: 'folder', mtime: stat.mtime.toISOString() });
+    } else {
+      files.push({ name: e.name, size: stat.size, type: path.extname(e.name).replace('.', '') || 'unknown', mtime: stat.mtime.toISOString() });
+    }
+  });
+  const sorter = (a, b) => {
+    let va = sort === 'size' ? a.size : (sort === 'mtime' ? a.mtime : a.name);
+    let vb = sort === 'size' ? b.size : (sort === 'mtime' ? b.mtime : b.name);
+    if (typeof va === 'string') va = va.toLowerCase();
+    if (typeof vb === 'string') vb = vb.toLowerCase();
+    return order === 'desc' ? (va > vb ? -1 : va < vb ? 1 : 0) : (va < vb ? -1 : va > vb ? 1 : 0);
+  };
+  files.sort(sorter);
+  folders.sort(sorter);
+  res.json({ files, folders });
+});
+
+// 文件上传
+const upload = multer({ dest: path.join(DATA_DIR, 'uploads'), limits: { fileSize: MAX_FILE_SIZE } });
+app.post('/api/v2/storage/files/upload/:uid', authMiddleware, upload.array('files', 20), (req, res) => {
+  const { uid } = req.params;
+  const host = DB.hosts[uid];
+  if (!host) return res.status(404).json({ error: '主机不存在' });
+  if (!req.files || req.files.length === 0) return res.status(400).json({ error: '没有文件' });
+  const hostDir = path.join(HOSTS_DIR, uid);
+  if (!fs.existsSync(hostDir)) fs.mkdirSync(hostDir, { recursive: true });
+  const results = [];
+  req.files.forEach(f => {
+    const destPath = path.join(hostDir, f.originalname);
+    fs.renameSync(f.path, destPath);
+    results.push({ name: f.originalname, size: f.size });
+  });
+  host.files = host.files || [];
+  host.files.push(...results);
+  const user = DB.users[host.owner];
+  if (user) {
+    user.spaceUsedMB = user.spaceUsedMB || 0;
+    const totalSize = results.reduce((s, f) => s + f.size, 0);
+    user.spaceUsedMB += Math.round(totalSize / (1024 * 1024) * 100) / 100;
+  }
+  saveDB();
+  res.json({ success: true, files: results });
+});
+
+// 删除文件
+app.post('/api/v2/storage/files/remove/:uid/:name', authMiddleware, (req, res) => {
+  const { uid, name } = req.params;
+  const host = DB.hosts[uid];
+  if (!host) return res.status(404).json({ error: '主机不存在' });
+  const filePath = path.join(HOSTS_DIR, uid, name);
+  if (!fs.existsSync(filePath)) return res.status(404).json({ error: '文件不存在' });
+  const stat = fs.statSync(filePath);
+  fs.unlinkSync(filePath);
+  const user = DB.users[host.owner];
+  if (user && stat.isFile()) {
+    user.spaceUsedMB = Math.max(0, (user.spaceUsedMB || 0) - Math.round(stat.size / (1024 * 1024) * 100) / 100);
+  }
+  saveDB();
+  res.json({ success: true });
+});
+
+// 批量删除文件
+app.post('/api/v2/storage/files/batch-remove/:uid', authMiddleware, (req, res) => {
+  const { uid } = req.params;
+  const { filenames } = req.body;
+  const host = DB.hosts[uid];
+  if (!host) return res.status(404).json({ error: '主机不存在' });
+  if (!filenames || !Array.isArray(filenames)) return res.status(400).json({ error: '缺少文件列表' });
+  let deleted = 0;
+  filenames.forEach(name => {
+    const filePath = path.join(HOSTS_DIR, uid, name);
+    if (fs.existsSync(filePath)) {
+      const stat = fs.statSync(filePath);
+      if (stat.isFile()) {
+        fs.unlinkSync(filePath);
+        deleted++;
+        const user = DB.users[host.owner];
+        if (user) {
+          user.spaceUsedMB = Math.max(0, (user.spaceUsedMB || 0) - Math.round(stat.size / (1024 * 1024) * 100) / 100);
+        }
+      }
+    }
+  });
+  saveDB();
+  res.json({ success: true, deleted_count: deleted });
+});
+
+// 重命名文件
+app.post('/api/v2/storage/files/rename/:uid/:name', authMiddleware, (req, res) => {
+  const { uid, name } = req.params;
+  const { new_name } = req.body;
+  const host = DB.hosts[uid];
+  if (!host) return res.status(404).json({ error: '主机不存在' });
+  const oldPath = path.join(HOSTS_DIR, uid, name);
+  const newPath = path.join(HOSTS_DIR, uid, new_name);
+  if (!fs.existsSync(oldPath)) return res.status(404).json({ error: '文件不存在' });
+  if (fs.existsSync(newPath)) return res.status(409).json({ error: '目标文件名已存在' });
+  fs.renameSync(oldPath, newPath);
+  res.json({ success: true });
+});
+
+// 创建文件夹
+app.post('/api/v2/storage/files/mkdir/:uid', authMiddleware, (req, res) => {
+  const { uid } = req.params;
+  const { dir_name } = req.body;
+  const host = DB.hosts[uid];
+  if (!host) return res.status(404).json({ error: '主机不存在' });
+  const dirPath = path.join(HOSTS_DIR, uid, dir_name);
+  if (fs.existsSync(dirPath)) return res.status(409).json({ error: '文件夹已存在' });
+  fs.mkdirSync(dirPath, { recursive: true });
+  res.json({ success: true });
+});
+
+// 删除文件夹
+app.post('/api/v2/storage/files/rmdir/:uid', authMiddleware, (req, res) => {
+  const { uid } = req.params;
+  const { dir_name } = req.body;
+  const host = DB.hosts[uid];
+  if (!host) return res.status(404).json({ error: '主机不存在' });
+  const dirPath = path.join(HOSTS_DIR, uid, dir_name);
+  if (!fs.existsSync(dirPath)) return res.status(404).json({ error: '文件夹不存在' });
+  fs.rmSync(dirPath, { recursive: true, force: true });
+  res.json({ success: true });
+});
+
+// 文件预览
+app.get('/api/v2/storage/files/preview/:uid/:name', authMiddleware, (req, res) => {
+  const { uid, name } = req.params;
+  const filePath = path.join(HOSTS_DIR, uid, name);
+  if (!fs.existsSync(filePath)) return res.status(404).json({ error: '文件不存在' });
+  const ext = path.extname(name).toLowerCase();
+  const mimeMap = {
+    '.html': 'text/html', '.htm': 'text/html', '.css': 'text/css', '.js': 'application/javascript',
+    '.json': 'application/json', '.xml': 'application/xml', '.txt': 'text/plain',
+    '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.gif': 'image/gif', '.svg': 'image/svg+xml',
+    '.pdf': 'application/pdf', '.zip': 'application/zip'
+  };
+  res.setHeader('Content-Type', mimeMap[ext] || 'application/octet-stream');
+  fs.createReadStream(filePath).pipe(res);
+});
+
+// 清理空间
+app.post('/api/v2/storage/files/cleanup/:uid', authMiddleware, (req, res) => {
+  const { uid } = req.params;
+  const host = DB.hosts[uid];
+  if (!host) return res.status(404).json({ error: '主机不存在' });
+  const hostDir = path.join(HOSTS_DIR, uid);
+  if (fs.existsSync(hostDir)) {
+    fs.readdirSync(hostDir).forEach(f => {
+      fs.rmSync(path.join(hostDir, f), { recursive: true, force: true });
+    });
+  }
+  const user = DB.users[host.owner];
+  if (user) user.spaceUsedMB = 0;
+  saveDB();
+  res.json({ success: true, message: '空间已清理' });
+});
+
+// ============ 用户扩展 API ============
+
+// 修改密码
+app.post('/api/v2/user/profile/password', authMiddleware, (req, res) => {
+  const { old_password, new_password } = req.body;
+  const user = DB.users[req.user.username];
+  if (!user) return res.status(404).json({ error: '用户不存在' });
+  if (!verifyPasswordBcrypt(old_password, user.password)) return res.status(401).json({ error: '旧密码错误' });
+  const pwError = validatePasswordStrength(new_password);
+  if (pwError) return res.status(400).json({ error: pwError });
+  user.password = hashPasswordBcrypt(new_password);
+  saveDB();
+  res.json({ success: true, message: '密码已修改' });
+});
+
+// 注销账号
+app.post('/api/v2/user/profile/delete', authMiddleware, (req, res) => {
+  const { password } = req.body;
+  const user = DB.users[req.user.username];
+  if (!user) return res.status(404).json({ error: '用户不存在' });
+  if (!verifyPasswordBcrypt(password, user.password)) return res.status(401).json({ error: '密码错误' });
+  const uid = user.id;
+  delete DB.users[req.user.username];
+  delete DB.hosts[uid];
+  const hostDir = path.join(HOSTS_DIR, uid);
+  if (fs.existsSync(hostDir)) fs.rmSync(hostDir, { recursive: true, force: true });
+  saveDB();
+  res.json({ success: true, message: '账号已注销' });
+});
+
+// 用户活动
+app.get('/api/v2/user/activity', authMiddleware, (req, res) => {
+  const logs = DB.auditLog.filter(l => l.ip && DB.users[req.user.username]?.knownIPs?.includes(l.ip)).slice(-50);
+  res.json({ success: true, activities: logs });
+});
+
+// 撤销会话
+app.post('/api/v2/user/sessions/revoke', authMiddleware, (req, res) => {
+  const { token_prefix } = req.body;
+  Object.keys(DB.refreshTokens).forEach(k => {
+    if (!token_prefix || k.startsWith(token_prefix)) delete DB.refreshTokens[k];
+  });
+  saveDB();
+  res.json({ success: true });
+});
+
+// ============ 支付/兑换 API ============
+
+// 兑换卡密
+app.post('/api/v2/payment/redeem/exchange', authMiddleware, (req, res) => {
+  const { code } = req.body;
+  if (!code) return res.status(400).json({ error: '缺少卡密' });
+  const card = DB.cards.find(c => c.code === code && !c.used);
+  if (!card) return res.status(404).json({ error: '卡密无效或已使用' });
+  card.used = true;
+  card.used_by = req.user.username;
+  card.used_at = new Date().toISOString();
+  const user = DB.users[req.user.username];
+  if (user) {
+    user.plan = card.plan;
+    user.planName = card.plan === 'premium' ? '高级版' : card.plan === 'pro' ? '专业版' : '免费版';
+    if (card.plan === 'premium') user.spaceLimitMB = 500;
+    if (card.plan === 'pro') user.spaceLimitMB = 2000;
+  }
+  saveDB();
+  logAudit('card_redeem', getClientIP(req), '用户 ${req.user.username} 兑换卡密 ${code}');
+  res.json({ success: true, plan: card.plan, message: '兑换成功' });
+});
+
 // ============ 管理后台 API ============
 
 // 统计概览
@@ -707,8 +1004,8 @@ app.post('/api/v2/sys/management/ban/user', hmacMiddleware, (req, res) => {
   user.banned = true;
   user.banReason = reason || '违规';
   saveDB();
-  logAudit('ban_user', getClientIP(req), `封禁用户: ${username}, 原因: ${reason}`);
-  res.json({ success: true, message: `已封禁用户 ${username}` });
+  logAudit('ban_user', getClientIP(req), '封禁用户: ${username}, 原因: ${reason}');
+  res.json({ success: true, message: '已封禁用户 ${username}' });
 });
 
 // 解封用户
@@ -719,11 +1016,11 @@ app.post('/api/v2/sys/management/unban/user', hmacMiddleware, (req, res) => {
   user.banned = false;
   user.banReason = null;
   saveDB();
-  logAudit('unban_user', getClientIP(req), `解封用户: ${username}`);
-  res.json({ success: true, message: `已解封用户 ${username}` });
+  logAudit('unban_user', getClientIP(req), '解封用户: ${username}');
+  res.json({ success: true, message: '已解封用户 ${username}' });
 });
 
-// 重置用户密码（管理员专用，解决 JWT_SECRET 变更导致旧密码失效的问题）
+// 重置用户密码
 app.post('/api/v2/sys/management/users/reset-password', hmacMiddleware, (req, res) => {
   const { username, new_password } = req.body;
   if (!username || !new_password) return res.status(400).json({ error: '缺少参数' });
@@ -733,8 +1030,8 @@ app.post('/api/v2/sys/management/users/reset-password', hmacMiddleware, (req, re
   if (pwError) return res.status(400).json({ error: pwError });
   user.password = hashPasswordBcrypt(new_password);
   saveDB();
-  logAudit('reset_password', getClientIP(req), `管理员重置用户密码: ${username}`);
-  res.json({ success: true, message: `已重置用户 ${username} 的密码` });
+  logAudit('reset_password', getClientIP(req), '管理员重置用户密码: ${username}');
+  res.json({ success: true, message: '已重置用户 ${username} 的密码' });
 });
 
 // 卡密生成
@@ -748,7 +1045,7 @@ app.post('/api/v2/sys/management/cards/generate', hmacMiddleware, (req, res) => 
     codes.push({ code, plan });
   }
   saveDB();
-  logAudit('card_generate', getClientIP(req), `生成${count}张卡密, 类型: ${plan}`);
+  logAudit('card_generate', getClientIP(req), '生成${count}张卡密, 类型: ${plan}');
   res.json({ success: true, codes });
 });
 
@@ -786,12 +1083,12 @@ server.listen(PORT, () => {
   console.log('========================================');
   console.log('手机多租户虚拟主机 v4.0.0 安全加固版');
   console.log('========================================');
-  console.log(`监听端口: ${PORT}`);
-  console.log(`管理密码: ${ADMIN_PASSWORD ? '已设置(环境变量)' : '未设置(随机生成)'}`);
-  console.log(`用户数量: ${Object.keys(DB.users).length}`);
-  console.log(`主机数量: ${Object.keys(DB.hosts).length}`);
+  console.log('监听端口: ${PORT}');
+  console.log('管理密码: ${ADMIN_PASSWORD ? '已设置(环境变量)' : '未设置(随机生成)'}');
+  console.log('用户数量: ${Object.keys(DB.users).length}');
+  console.log('主机数量: ${Object.keys(DB.hosts).length}');
   console.log('========================================');
-  console.log(`管理后台: http://127.0.0.1:${PORT}/panel.html`);
+  console.log('管理后台: http://127.0.0.1:${PORT}/panel.html');
   console.log('========================================');
   console.log('[安全] 已添加白名单IP: ' + (DB.whitelist.length > 0 ? DB.whitelist.join(', ') : '无'));
   console.log('========================================');
