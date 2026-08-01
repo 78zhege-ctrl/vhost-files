@@ -614,7 +614,27 @@ function hmacMiddleware(req, res, next) {
 app.get('/api/v2/user/profile/detail', authMiddleware, (req, res) => {
   const user = DB.users[req.user.username];
   if (!user) return res.status(404).json({ error: '用户不存在' });
-  res.json({ success: true, user: { id: user.id, username: user.username, plan: user.plan, planName: user.planName, registered: user.registered, lastLogin: user.lastLogin } });
+  const host = DB.hosts[user.id];
+  res.json({
+    success: true,
+    user: {
+      id: user.id,
+      host_uid: user.id,
+      username: user.username,
+      plan: user.plan,
+      plan_name: user.planName || (user.plan === 'premium' ? '高级版' : user.plan === 'pro' ? '专业版' : '免费版'),
+      planName: user.planName || (user.plan === 'premium' ? '高级版' : user.plan === 'pro' ? '专业版' : '免费版'),
+      registered: user.registered,
+      lastLogin: user.lastLogin,
+      space_used_mb: user.spaceUsedMB || 0,
+      space_limit_mb: user.spaceLimitMB || 100,
+      known_ips: user.knownIPs || [],
+      banned: user.banned || false,
+      host_url: host ? '/h/' + user.id + '/' : null,
+      host_password: host ? host.password : null,
+      host_files: host ? (host.files ? host.files.length : 0) : 0
+    }
+  });
 });
 
 // ============ IP 管理 ============
